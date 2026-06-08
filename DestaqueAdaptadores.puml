@@ -1,0 +1,26 @@
+@startuml "Adaptadores"
+
+
+
+package Adaptadores {
+    package Apresentacao {
+        class Controller
+        class CardapioController
+        package Presenters{
+            class CardapioPresenter
+            class CabecalhoCardapioPresenter
+        }
+    }
+    package Dados {
+        class CardapioRepositoryJDBC
+        class ProdutosRepositoryJDBC
+        class IngredientesJDBCImpl
+        class ReceitasRepositoryJDBC
+    }
+    package Infraestrutura{
+        class SecurityConfig
+        class DataLoader
+    }
+}
+
+@enduml

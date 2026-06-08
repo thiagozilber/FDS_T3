@@ -1,0 +1,16 @@
+@startuml
+title Atores  
+
+actor "Cliente da Tele" as Cliente
+actor "Equipe da Cozinha" as Cozinha
+actor "Administrador" as Admin
+actor "Entregador" as Entregador
+
+rectangle "Aplicação da Tele-Entrega" as App 
+
+Cliente --> App
+Cozinha --> App
+Admin --> App
+Entregador --> App
+
+@enduml

@@ -1,0 +1,205 @@
+Especificação do sistema:
+Uma pizzaria online utiliza um sistema de gestão de pedidos automatizados. O cliente acessa o
+sistema usando um aplicativo no celular. Inicialmente o cliente deve entrar no aplicativo. Se ainda
+não tiver cadastro deve se cadastrar. O cadastro do cliente compreende nome, cpf, celular, endereço,
+email e senha de acesso. O "usuário" será sempre o email.
+
+Depois de "entrar" no sistema, o cliente pode consultar o cardápio e montar seu pedido. No cardápio 
+o cliente visualiza a descrição de cada item e seu preço unitário. Os itens "indicados pelo chef" no dia
+aparecem em destaque. Um pedido pode incluir quantos itens de cardápio o cliente desejar. Para 
+cada item deve indicar a quantidade desejada. No final do pedido o cliente deve informar 
+também o endereço de entrega. 
+
+Quando o pedido está completo o cliente 
+submete o pedido para aprovação (neste momento o status do pedido é marcado como "NOVO"). Para cada 
+item o sistema conhece a relação de ingredientes necessários. Então é feita uma verificação no 
+estoque para saber se existem ingredientes suficientes para atender a todos os itens do pedido. Em 
+caso negativo o pedido é retornado destacando os itens que não podem ser atendidos. Automaticamente 
+os itens de cardápio correspondentes são marcados como indisponíveis (essa situação só se altera 
+quando chegarem mais ingredientes no estoque). Se tudo estiver ok o status do pedido é alterado 
+para "APROVADO" e o custo do pedido é calculado. Importante notar que os itens do estoque são
+organizados nas porções necessárias para atender as receitas.
+
+O calculo do custo compreende somar o custo dos itens individuais, aplicar o desconto - se for o 
+caso - e calcular os impostos. Atualmente a pizzaria paga um imposto único de 10% sobre o valor do 
+somatório do custo dos itens. Para clientes que fizeram mais de 3 pedidos nos últimos 20 dias é 
+fornecido um desconto de 7% no custo de cada item. O custo final é calculado subtraindo-se o 
+desconto do custo dos itens, e somando-se o imposto ao resultado da subtração. 
+
+O pedido "APROVADO" é então retornado para o cliente efetuar o pagamento. Neste momento o cliente 
+pode cancelar o pedido ou efetuar o pagamento. Se o pagamento for efetuado o pedido é encaminhado 
+para a fila da cozinha com o status "PAGO" (a partir deste momento não pode 
+mais ser cancelado) e uma mensagem com o número do pedido é informada ao cliente. caso contrario
+o pedido é abandonado. 
+
+Na cozinha, o pedido recebe o status "AGUARDANDO". Quando começar a ser preparado o pedido passa 
+para o status “PREPARAÇÃO”. Quando o pedido estiver pronto o status passa para “PRONTO”. Neste
+momento é encaminhado para a fila do setor de entregas. 
+
+No setor de entregas o pedido aguarda ser atribuido a um entregador. Quando um entregador receber 
+o pedido este passa para o estado "TRANSPORTE" e, finalmente, quando é entregue passa para o estado 
+"ENTREGUE". Pedidos entregues são então arquivados no sistema associados ao cliente.
+
+Durante todo o tempo, as mudanças de status do pedido podem ser acompanhadas pelo aplicativo a 
+partir do número do pedido.
+ 
+@startuml "Classes de domínio"
+
+package Dominio {
+
+class Cliente{
+    - String cpf
+    - String nome
+    - String celular
+    - String endereço
+    - String email
+}
+
+class Ingrediente{
+    - long id
+    - String descricao
+}
+
+class Receita{
+    - long id
+    - String titulo
+    - List<Ingrediente> ingredientes
+}
+
+Receita "1" --> "1..*" Ingrediente
+
+class ItemEstoque{
+    - Ingrediente ingrediente
+    - int quantidade
+}
+
+ItemEstoque "1" --> "1" Ingrediente
+
+class Estoque{
+    - List<ItemEstoque> itens;
+}
+
+Estoque "1" --> "1..*" ItemEstoque
+
+class Produto{
+    - String descricao
+    - Receita receita
+    - int preco
+}
+
+Produto "1" --> "1" Receita
+
+class CabecalhoCardapio{
+    - long id
+    - String titulo
+}
+
+class Cardapio{
+    - CabecalhoCardapio cabecalho
+    - List<Produto> produtos
+}
+
+Cardapio --> CabecalhoCardapio
+Cardapio "1" --> "1..*" Produto
+
+class ItemPedido{
+    - Produto item
+    - int quantidade
+}
+
+ItemPedido "1" --> "1" Produto
+
+enum StatusPedido{
+    NOVO 
+    APROVADO
+    PAGO
+    AGUARDANDO
+    PREPARACAO
+    PRONTO
+    TRANSPORTE
+    ENTREGUE
+}
+
+class Pedido{
+    - long id
+    - Cliente cliente;
+    - LocalDateTime data_hora_pagamento
+    - List<ItemPedido> itens;
+    - StatusPedido status
+    - double valor
+    - double impostos
+    - double desconto
+    - double valorCobrado
+}
+
+Pedido "1" --> "1" Cliente
+Pedido "1" --> "1" StatusPedido
+Pedido "1" --> "1..*" ItemPedido
+
+}
+
+@enduml
+
+Ações:
+- Cadastrar cliente
+    - Pré:
+        - Cliente inexistente (CPF)
+    - Pós:
+        - Cliente cadastrado
+- Autenticar no sistema
+    - Pré:
+        - Cliente existente
+    - Pós:
+        - Cliente "logado"
+- Carregar cardápio
+    - Pré:
+        - Cliente logado
+    - Pós:
+        - Retorna a lista de itens do cardápio marcando os que estão indisponiveis
+- Submeter pedido para aprovação
+    - Pré:
+        - Pedido com status ABERTO
+        - Para todos os itens do pedido todos os ingredientes necessários estão
+        disponíveis no estoque
+    - Pós:
+        - Baixa no estoque dos itens necessários
+        - Calcula o custo do pedido (incluindo impostos e descontos)
+        - Retorna o pedido com status APROVADO
+- Solicitar status de pedido
+    - Pré:
+        - Pedido existente
+    - Pós:
+        - Retorna status do pedido
+- Cancelar pedido
+    - Pré:
+        - Pedido com status ABERTO ou APROVADO
+    - Pós:
+        - Pedido removido da fila da cozinha
+        - Pedido removido da base de dados do sistema
+        - Itens do estoque devolvidos ao estoque
+- Pagar pedido
+    - Pré:
+        - Pedido com status APROVADO
+    - Pós:
+        - Pedido com status PAGO
+        - Pedido inserido na fila da cozinha
+
+
+Serviços:
+- Cadastro de clientes
+    - Mantém o cadastro dos clientes
+- Autenticação
+    - Responsável por autenticação e autorização
+- Estoque
+    - Mantém a relação de itens disponiveis para o preparo dos itens do cardápio (incluindo bebidas)
+- Cardapio
+    - Mantém a lista de itens que podem ser pedidos com os respectivos preços e receitas
+- Cozinha
+    - Mantém a fila de pedidos e acompanha o preparo
+- Entrega
+    - Mantém a fila de entregas, atribui entregadores e acompanha a entrega
+- Pagamento
+    - Responsável pelos meios de pagamento
+- Restaurante
+    - Responsavel pelas operações básicas do restaurante
+

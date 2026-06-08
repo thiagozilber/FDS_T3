@@ -1,0 +1,84 @@
+@startuml "Organização em 4 camadas"
+'!pragma layout smetana
+'skinparam packagePadding 2
+'skinparam classAttributeIconSize 0
+'skinparam nodesep 10
+'skinparam ranksep 10
+
+package Dominio {
+    package Entidades {
+        class Cliente
+        class Ingrediente
+        class Receita
+        class ItemEstoque
+        class Estoque
+        class Produto
+        class CabecalhoCardapio
+        class Cardapio
+        class ItemPedido
+        enum StatusPedido
+        class Pedido
+    }
+    package Servicos {
+        class CardapioService
+        class CozinhaService
+    }
+    package Dados {
+        interface CardapioRepository
+        interface ProdutoRepository
+        interface IngredientesRepository
+        interface ReceitaRepository
+    }
+}
+
+package Aplicacao {
+    class RecuperaCardapioUC
+    class RecuperaListaCardapiosUC
+}
+
+package Adaptadores {
+    package Apresentacao {
+        class Controller
+        class CardapioController
+    }
+    package Dados {
+        class CardapioRepositoryJDBC
+        class ProdutosRepositoryJDBC
+        class IngredientesJDBCImpl
+        class ReceitasRepositoryJDBC
+    }
+}
+
+
+' Relações principais (apenas entre classes, não entre pacotes)
+Dominio.Entidades.Receita --> Dominio.Entidades.Ingrediente
+Dominio.Entidades.ItemEstoque --> Dominio.Entidades.Ingrediente
+Dominio.Entidades.Estoque --> Dominio.Entidades.ItemEstoque
+Dominio.Entidades.Produto --> Dominio.Entidades.Receita
+Dominio.Entidades.Cardapio --> Dominio.Entidades.CabecalhoCardapio
+Dominio.Entidades.Cardapio --> Dominio.Entidades.Produto
+Dominio.Entidades.ItemPedido --> Dominio.Entidades.Produto
+Dominio.Entidades.Pedido --> Dominio.Entidades.Cliente
+Dominio.Entidades.Pedido --> Dominio.Entidades.StatusPedido
+Dominio.Entidades.Pedido --> Dominio.Entidades.ItemPedido
+
+' Implementações JDBC
+Adaptadores.Dados.CardapioRepositoryJDBC ..|> Dominio.Dados.CardapioRepository
+Adaptadores.Dados.ProdutosRepositoryJDBC ..|> Dominio.Dados.ProdutoRepository
+Adaptadores.Dados.IngredientesJDBCImpl ..|> Dominio.Dados.IngredientesRepository
+Adaptadores.Dados.ReceitasRepositoryJDBC ..|> Dominio.Dados.ReceitaRepository
+
+Adaptadores.Apresentacao.CardapioController --> Aplicacao.RecuperaCardapioUC
+Adaptadores.Apresentacao.CardapioController --> Aplicacao.RecuperaListaCardapiosUC
+
+Aplicacao.RecuperaCardapioUC --> Dominio.Servicos.CardapioService
+Aplicacao.RecuperaListaCardapiosUC --> Dominio.Servicos.CardapioService
+
+Dominio.Servicos.CardapioService --> Dominio.Entidades.Cardapio
+Dominio.Servicos.CozinhaService --> Dominio.Entidades.Pedido
+
+Dominio.Dados.CardapioRepository --> Dominio.Entidades.Cardapio
+Dominio.Dados.ProdutoRepository --> Dominio.Entidades.Produto
+Dominio.Dados.IngredientesRepository --> Dominio.Entidades.Ingrediente
+Dominio.Dados.ReceitaRepository --> Dominio.Entidades.Receita
+@enduml

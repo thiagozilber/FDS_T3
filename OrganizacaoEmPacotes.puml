@@ -1,0 +1,33 @@
+@startuml "Organização dos Niveis"
+
+Title "Organização dos Pacotes"
+package Dominio {
+    package Entidades {
+    }
+    package Servicos {
+    }
+    package Dados {
+    }
+}
+
+package Aplicacao {
+}
+
+package Adaptadores {
+    package Apresentacao {
+    }
+    package Dados {
+    }
+    package Infraestrutura{
+    }
+}
+
+
+' Relações principais (entre pacotes)
+Dominio.Servicos --> Dominio.Dados
+Dominio.Servicos --> Dominio.Entidades
+Aplicacao --> Dominio.Servicos
+Aplicacao --> Dominio.Entidades
+Adaptadores.Apresentacao --> Aplicacao
+Adaptadores.Dados ..|> Dominio.Dados
+@enduml

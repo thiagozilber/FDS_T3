@@ -1,0 +1,30 @@
+@startuml
+title Diagrama de Contexto - Pizzaria 
+
+actor "Cliente da Tele" as Cliente
+actor "Equipe da Cozinha" as Cozinha
+actor "Administrador" as Admin
+actor "Entregador" as Entregador
+
+rectangle "Monólito Spring Boot" as App {
+  rectangle "Camada Edge (Spring Security)" as Edge
+  rectangle "API de Negócio" as API
+}
+
+database "SGBD" as DB
+rectangle "Gateway de Pagamentos" as Pay
+'rectangle "Observabilidade (Logs/Métricas)" as Obs
+'rectangle "Mensageria/Notificações" as Msg
+
+Cliente --> Edge : HTTP(S) JWT/Cookie
+Cozinha --> Edge : HTTP(S) autenticado
+Admin --> Edge : HTTP(S) autenticado
+Entregador --> Edge : HTTP(S) autenticado
+
+Edge --> API : requisições
+'SecurityContext
+API --> DB 
+API --> Pay 
+'API --> Obs : logs/métricas
+'API --> Msg : e-mail/SMS/WhatsApp
+@enduml

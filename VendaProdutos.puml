@@ -1,0 +1,19 @@
+@startuml VendaProdutos
+
+top to bottom direction
+
+package Apresentacao {
+    class Controller {
+    }
+}
+
+package Negocio {
+}
+
+package Persistencia {
+}
+
+Apresentacao -[hidden]-> Negocio
+Negocio -[hidden]-> Persistencia
+
+@enduml

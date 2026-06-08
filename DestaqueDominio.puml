@@ -1,0 +1,55 @@
+@startuml "Nivel de Domínio"
+
+package Dominio {
+    package Entidades {
+        class Cliente
+        class Ingrediente
+        class Receita
+        class ItemEstoque
+        class Estoque
+        class Produto
+        class Cardapio
+        class CabecalhoCardapio
+        class ItemPedido
+        enum StatusPedido
+        class Pedido
+    }
+    package Servicos {
+        class CardapioService
+        'class ClientesService
+        class PedidoService
+        'class EstoqueService
+        'class CozinhaService
+        class EntregaService
+        interface PagamentoService
+    }
+    package Dados {
+        interface CardapioRepository
+        interface ProdutoRepository
+        interface IngredientesRepository
+        interface ReceitaRepository
+    }
+}
+
+
+
+' Relações principais (apenas entre classes, não entre pacotes)
+Dominio.Entidades.Receita --> Dominio.Entidades.Ingrediente
+Dominio.Entidades.ItemEstoque --> Dominio.Entidades.Ingrediente
+Dominio.Entidades.Estoque --> Dominio.Entidades.ItemEstoque
+Dominio.Entidades.Produto --> Dominio.Entidades.Receita
+Dominio.Entidades.Cardapio --> Dominio.Entidades.CabecalhoCardapio
+Dominio.Entidades.Cardapio --> Dominio.Entidades.Produto
+Dominio.Entidades.ItemPedido --> Dominio.Entidades.Produto
+Dominio.Entidades.Pedido --> Dominio.Entidades.Cliente
+Dominio.Entidades.Pedido --> Dominio.Entidades.StatusPedido
+Dominio.Entidades.Pedido --> Dominio.Entidades.ItemPedido
+
+Dominio.Servicos.CardapioService --> Dominio.Entidades.Cardapio
+Dominio.Servicos.CozinhaService --> Dominio.Entidades.Pedido
+Dominio.Servicos.PedidoService --> Dominio.Entidades.Pedido
+
+Dominio.Dados.CardapioRepository --> Dominio.Entidades.Cardapio
+Dominio.Servicos.CardapioService --> Dominio.Dados.CardapioRepository
+
+@enduml
