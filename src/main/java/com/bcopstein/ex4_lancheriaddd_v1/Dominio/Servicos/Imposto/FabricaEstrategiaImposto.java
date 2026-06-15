@@ -12,7 +12,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Config.ImpostoProperties;
 // Factory: resolve a estrategia de calculo de imposto associada a lei vigente.
 // Recebe TODAS as estrategias registradas como @Component e indexa por codigo da lei.
 // Para adicionar uma nova lei basta criar uma nova implementacao de
-// IEstrategiaCalculoImposto - nenhuma alteracao aqui (OCP).
+// IEstrategiaCalculoImposto - nenhuma alteracao aqui.
 @Component
 public class FabricaEstrategiaImposto {
 

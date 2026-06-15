@@ -66,3 +66,7 @@ INSERT INTO cardapio_produto (cardapio_id,produto_id) VALUES (1,3);
 
 INSERT INTO cardapio_produto (cardapio_id,produto_id) VALUES (2,1);
 INSERT INTO cardapio_produto (cardapio_id,produto_id) VALUES (2,3);
+
+-- Configuracao corrente (re-seed a cada boot: spring.sql.init.mode=always)
+INSERT INTO configuracao (chave, valor) VALUES ('cardapio.corrente', '1');
+INSERT INTO configuracao (chave, valor) VALUES ('desconto.corrente', 'SemDesconto');

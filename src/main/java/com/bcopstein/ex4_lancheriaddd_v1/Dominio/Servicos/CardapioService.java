@@ -31,4 +31,19 @@ public class CardapioService {
     public List<Produto> recuperaSugestoesDoChef(){
         return cardapioRepository.indicacoesDoChef();
     }
+
+    public void defineCardapioCorrente(long id){
+        if (cardapioRepository.recuperaPorId(id) == null) {
+            throw new IllegalArgumentException("Cardapio inexistente: " + id);
+        }
+        cardapioRepository.defineCorrente(id);
+    }
+
+    public Cardapio recuperaCardapioCorrente(){
+        Cardapio corrente = cardapioRepository.recuperaCorrente();
+        if (corrente == null) {
+            throw new IllegalStateException("Nenhum cardapio corrente definido");
+        }
+        return corrente;
+    }
 }

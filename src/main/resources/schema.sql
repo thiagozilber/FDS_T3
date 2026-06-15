@@ -63,3 +63,9 @@ create table if not exists cardapio_produto (
   foreign key (cardapio_id) references cardapios(id),
   foreign key (produto_id) references produtos(id)
 );
+
+-- Tabela chave/valor para estado corrente (cardapio corrente, politica de desconto corrente)
+create table if not exists configuracao (
+  chave varchar(50) not null primary key,
+  valor varchar(100) not null
+);
