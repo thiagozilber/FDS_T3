@@ -79,4 +79,12 @@ class ServicoDescontoTest {
         assertThrows(IllegalArgumentException.class, () -> servico.definirPolitica("xpto"));
         assertEquals("SemDesconto", servico.getPoliticaCorrente()); // nao persistiu
     }
+
+    @Test
+    void definirPoliticaMuitoLongaLanca() {
+        ServicoDesconto servico = servicoCom("SemDesconto");
+        String codigoLongo = "x".repeat(51);
+        assertThrows(IllegalArgumentException.class, () -> servico.definirPolitica(codigoLongo));
+        assertEquals("SemDesconto", servico.getPoliticaCorrente()); // nao persistiu
+    }
 }

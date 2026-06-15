@@ -10,6 +10,8 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.FabricaEstrat
 
 @Service
 public class ServicoDesconto {
+    private static final int MAX_TAMANHO_CODIGO = 50;
+
     private final FabricaEstrategiaDesconto fabrica;
     private final DescontoRepository descontoRepository;
 
@@ -31,6 +33,10 @@ public class ServicoDesconto {
     }
 
     public void definirPolitica(String codigo) {
+        if (codigo != null && codigo.length() > MAX_TAMANHO_CODIGO) {
+            throw new IllegalArgumentException(
+                "Codigo de politica invalido (tamanho excede " + MAX_TAMANHO_CODIGO + ")");
+        }
         fabrica.criar(codigo); // valida: lanca IllegalArgumentException (-> HTTP 400) se desconhecido
         descontoRepository.definePolitica(codigo);
     }

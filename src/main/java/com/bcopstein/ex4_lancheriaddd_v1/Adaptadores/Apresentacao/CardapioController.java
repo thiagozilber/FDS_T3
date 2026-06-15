@@ -4,7 +4,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -39,13 +38,11 @@ public class CardapioController {
     }
 
     @GetMapping("/{id}")
-    @CrossOrigin("*")
     public CardapioPresenter recuperaCardapio(@PathVariable(value="id")long id){
         return montarPresenter(recuperaCardapioUC.run(id));
     }
 
     @GetMapping("/lista")
-    @CrossOrigin("*")
     public List<CabecalhoCardapioPresenter> recuperaListaCardapios(){
          List<CabecalhoCardapioPresenter> lstCardapios =
             recuperaListaCardapioUC.run().cabecalhos().stream()
@@ -55,14 +52,12 @@ public class CardapioController {
     }
 
     @PutMapping("/corrente/{id}")
-    @CrossOrigin("*")
     public CardapioPresenter defineCardapioCorrente(@PathVariable(value="id") long id){
         definirCardapioCorrenteUC.run(id);
         return montarPresenter(recuperarCardapioCorrenteUC.run());
     }
 
     @GetMapping("/corrente")
-    @CrossOrigin("*")
     public CardapioPresenter recuperaCardapioCorrente(){
         return montarPresenter(recuperarCardapioCorrenteUC.run());
     }

@@ -4,11 +4,11 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 // Helper de infraestrutura (camada de adaptadores) para o estado corrente chave/valor.
 // Unico ponto com escrita JDBC no projeto: MERGE = upsert no H2 (usa a PK 'chave').
-@Component
+@Repository
 public class ConfiguracaoRepositoryJDBC {
     private JdbcTemplate jdbcTemplate;
 

@@ -1,11 +1,11 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Dados;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.DescontoRepository;
 
-@Component
+@Repository
 public class DescontoRepositoryJDBC implements DescontoRepository {
     public static final String CHAVE_CORRENTE = "desconto.corrente";
 
