@@ -1,11 +1,10 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Dados;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.CardapioRepository;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.ProdutosRepository;
@@ -13,15 +12,20 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.CabecalhoCardapio;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Cardapio;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
 
-@Component
+@Repository
 public class CardapioRepositoryJDBC implements CardapioRepository{
+    public static final String CHAVE_CORRENTE = "cardapio.corrente";
+
     private JdbcTemplate jdbcTemplate;
     private ProdutosRepository produtosRepository;
+    private ConfiguracaoRepositoryJDBC configuracaoRepository;
 
     @Autowired
-    public CardapioRepositoryJDBC(JdbcTemplate jdbcTemplate,ProdutosRepository  produtosRepository){
+    public CardapioRepositoryJDBC(JdbcTemplate jdbcTemplate, ProdutosRepository produtosRepository,
+                                  ConfiguracaoRepositoryJDBC configuracaoRepository){
         this.jdbcTemplate = jdbcTemplate;
         this.produtosRepository = produtosRepository;
+        this.configuracaoRepository = configuracaoRepository;
     }
 
     @Override
@@ -57,5 +61,23 @@ public class CardapioRepositoryJDBC implements CardapioRepository{
         );
         return cabCardapios;
     }
-    
+
+    @Override
+    public void defineCorrente(long id) {
+        configuracaoRepository.define(CHAVE_CORRENTE, String.valueOf(id));
+    }
+
+    @Override
+    public Cardapio recuperaCorrente() {
+        String valor = configuracaoRepository.valor(CHAVE_CORRENTE);
+        if (valor == null) {
+            return null;
+        }
+        try {
+            return recuperaPorId(Long.parseLong(valor));
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Valor invalido para cardapio corrente na configuracao");
+        }
+    }
+
 }

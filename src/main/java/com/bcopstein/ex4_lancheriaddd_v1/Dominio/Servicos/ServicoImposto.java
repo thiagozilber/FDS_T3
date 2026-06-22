@@ -6,9 +6,6 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.FabricaEstrate
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.IEstrategiaCalculoImposto;
 
 // Ponto de entrada para calculo de imposto.
-// SRP: so coordena - a regra de cada lei vive na sua estrategia.
-// OCP: novas leis sao adicionadas implementando IEstrategiaCalculoImposto;
-//      esta classe nao precisa mudar.
 @Service
 public class ServicoImposto {
 

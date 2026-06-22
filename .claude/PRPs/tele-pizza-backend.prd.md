@@ -325,10 +325,10 @@ Rules: `*Test` class suffix, descriptive `void` method names, `DELTA` for double
 | UC | Name | Actor | Status | Suggested endpoint | Touches | Acceptance |
 |---|---|---|---|---|---|---|
 | UC1 | Listar cardápios disponíveis | Adm | ✅ | GET `/cardapio/lista` | CardapioService | Returns all stored cardápio headers |
-| UC2 | Definir cardápio corrente | Adm | ⬜ | PUT `/cardapio/corrente/{id}` | CardapioService + persist "corrente" | Sets which cardápio is active from then on; persisted |
-| UC3 | Listar políticas de desconto | Adm | ⬜ | GET `/descontos/politicas` | ServicoDesconto | Lists available discount codes (≥3) |
-| UC4 | Definir política de desconto corrente | Adm | ⬜ | PUT `/descontos/corrente` `{codigo}` | ServicoDesconto + DescontoRepository | Switches active policy at runtime; persisted; rejects unknown code |
-| UC5 | Carregar cardápio | Cliente | 🟡 | GET `/cardapio/corrente` (and/or `/cardapio/{id}`) | CardapioService | Returns the **current** cardápio for ordering (depends on UC2) |
+| UC2 | Definir cardápio corrente | Adm | ✅ | PUT `/cardapio/corrente/{id}` | CardapioService + `configuracao` k/v | Sets active cardápio; persisted (MERGE); unknown id → 400 |
+| UC3 | Listar políticas de desconto | Adm | ✅ | GET `/descontos/politicas` | ServicoDesconto | Lists 3 codes (SemDesconto, Fidelidade7, PromocaoVerao) + corrente |
+| UC4 | Definir política de desconto corrente | Adm | ✅ | PUT `/descontos/corrente/{codigo}` | ServicoDesconto + DescontoRepository | Switches active policy at runtime; persisted; unknown code → 400 (path var, not body — decision D4) |
+| UC5 | Carregar cardápio | Cliente | ✅ | GET `/cardapio/corrente` | CardapioService | Returns the **current** cardápio (no corrente set → IllegalState/500) |
 | UC6 | Submeter pedido para aprovação | Cliente | ⬜ | POST `/pedidos` | **ServicoPedido**, Estoque, Cardápio, **ServicoImposto**, **ServicoDesconto** | Returns approved order w/ price, or denied order highlighting unfulfillable items; marks those items indisponível; sets NOVO→APROVADO |
 | UC7 | Solicitar status de pedido | Cliente | ⬜ | GET `/pedidos/{id}/status` | ServicoPedido | Returns current status by order number |
 | UC8 | Cancelar pedido | Cliente | ⬜ | POST `/pedidos/{id}/cancelar` | ServicoPedido | Cancels an APROVADO-but-not-PAGO order; rejects otherwise |
@@ -344,8 +344,8 @@ Rules: `*Test` class suffix, descriptive `void` method names, `DELTA` for double
 | Service | Status | Interface / location | Notes |
 |---|---|---|---|
 | **Impostos** | ✅ | `ServicoImposto` + `Imposto/` strategy pkg | ≥2 strategies done; env-var configurable |
-| **Descontos** | ⬜ | `ServicoDesconto` + `Desconto/` strategy pkg (NEW) | Mirror Imposto (§6.6); **runtime-switchable via UC4 endpoint**, persisted; **≥3 strategies** incl. loyalty (>3 orders/20 days → 7%) |
-| **Cardápio** | 🟡 | `CardapioService` | Add "cardápio corrente" (UC2) + indisponibilidade of items (UC6) |
+| **Descontos** | ✅ | `ServicoDesconto` + `Desconto/` strategy pkg | 3 strategies (SemDesconto/Fidelidade7/PromocaoVerao); runtime-switchable (UC4), persisted via `configuracao`; `calcular` returns the discount **amount** w/ `ContextoDesconto` |
+| **Cardápio** | 🟡 | `CardapioService` | "cardápio corrente" ✅ (UC2/UC5); indisponibilidade of items still pending (UC6, P2) |
 | **Pedidos** | ⬜ | `ServicoPedido` (NEW) | Validate order consistency, compute values → calls Imposto + Desconto; drives the status machine |
 | **Estoque** | ⬜ | `ServicoEstoque` (NEW) | Holds available ingredient portions (incl. beverages); checks/decrements stock for an order |
 | **Cozinha** | 🟡 | `ICozinhaService`/`CozinhaService` | Simulated; must **persist** status changes to DB for UC9 |
@@ -363,8 +363,8 @@ Update the **Status** column as you go. Each phase depends on the prior unless n
 | # | Date | Phase | Use cases / deliverable | Depends on | Status |
 |---|---|---|---|---|---|
 | P0 | 08/06/2026 | Definição + estudo de caso rodando | App boots, menu UCs run, Imposto service | — | ✅ complete |
-| **P1** | **10/06/2026** | **Cardápio corrente + Descontos** | **UC1, UC2, UC3, UC4, UC5** | P0 | **🔜 next — pending** |
-| P2 | 15/06/2026 | Ciclo do pedido | UC6, UC7, UC8, UC9 (+ Pedidos, Estoque, Pagamento, Entrega services) | P1 | ⬜ pending |
+| P1 | 10/06/2026 | Cardápio corrente + Descontos | UC1, UC2, UC3, UC4, UC5 | P0 | ✅ complete — [plan](plans/completed/cardapio-corrente-e-descontos.plan.md) · [report](reports/cardapio-corrente-e-descontos-report.md) |
+| **P2** | **15/06/2026** | **Ciclo do pedido** | **UC6, UC7, UC8, UC9** (+ Pedidos, Estoque, Pagamento, Entrega services) | P1 | **🔜 next — pending** |
 | P3 | 17/06/2026 | Persistência com JPA | Migrate JDBC repos → JPA; entities annotated | P2 | ⬜ pending |
 | P4 | 22/06/2026 | Usuários + histórico | UC10, UC11, UC12 | P3 | ⬜ pending |
 | P5 | 24/06/2026 | Autenticação | Login/authorization enforced on `(A)`/`(Adm)` UCs | P4 | ⬜ pending |
@@ -462,13 +462,18 @@ Per-phase: add the new endpoints' curl checks to the Progress Log when you imple
 
 **Decisions (append as made):**
 - _2026-06-08_: This PRD is the project's living tracker, stored in-repo at `.claude/PRPs/`.
+- _2026-06-08 (P1 plan)_: **k/v `configuracao(chave pk, valor)` table** holds both `cardapio.corrente` and `desconto.corrente`. Writes go through one shared adapter-layer helper `ConfiguracaoRepositoryJDBC` (DRY) using **H2 `MERGE INTO`** — the repo had **zero** JDBC write precedent (grep-verified).
+- _2026-06-08 (P1 plan)_: **`FabricaEstrategiaDesconto` does NOT take a config/`Properties` bean** (unlike Imposto) and has **no no-arg `criar()`**. The active policy is read from `DescontoRepository` at call time so UC4 can switch it at **runtime**.
+- _2026-06-08 (P1 plan)_: **400-on-unknown-code** is delivered by a new global `@RestControllerAdvice` (`IllegalArgumentException→400`, `IllegalStateException→500`); no `ResponseEntity`/advice precedent existed. Affects all endpoints (intentional, semantically correct).
+- _2026-06-08 (P1 plan)_: **UC4 uses `PUT /descontos/corrente/{codigo}` (path var)**, not a JSON body — no `@RequestBody` precedent, codes are path-safe.
 
 **Open questions for future sessions (resolve and record):**
-1. **Persistence of "corrente" state vs DB reset on boot.** `data.sql` reloads every start. Acceptable for now (re-seed defaults); revisit during JPA phase (P3).
+1. ~~**Persistence of "corrente" state vs DB reset on boot.**~~ **Resolved (P1):** accepted; `configuracao` defaults re-seeded in `data.sql` each boot; runtime switches are session-scoped. Revisit during JPA phase (P3).
 2. **JPA vs pure-POJO domain.** Annotating entities with JPA breaks the current "no framework annotations in `Dominio.Entidades`" rule. Choose: annotate entities, or introduce separate persistence models. (P3)
 3. **Cozinha/Entrega bean management.** `CozinhaService` is not Spring-managed; UC9 needs persisted status changes. Decide annotation/wiring. (P2)
-4. **Discount `calcular` signature.** Loyalty rule needs order history (>3 orders/20 days). Decide what context the strategy receives (subtotal + customer stats). (P1)
+4. ~~**Discount `calcular` signature.**~~ **Resolved (P1):** `calcular(double subtotalItens, ContextoDesconto contexto)` where `ContextoDesconto(int pedidosUltimos20Dias)` is **caller-supplied** (no `pedidos` persistence yet); returns the discount **amount**. Real order-counting waits for `PedidoRepository` (P2).
 5. **Auth mechanism.** Spring Security vs lightweight token filter. (P5)
+6. **Issues from the P1 review.** **✅ Addressed in the fix-up pass (2026-06-09):** (a) `GET /cardapio/{id}` unknown id → **404** via `RecursoNaoEncontradoException`, plus numeric path type-mismatch → 400; (d) `Adaptadores.Dados` stereotypes normalized to **`@Repository`**; (e-cors) per-method `@CrossOrigin("*")` replaced by a centralized, configurable `CorsConfig` (`app.cors.allowed-origins`); plus L1 `{codigo}` length bound, L2 Response/Presenter field alignment (`codigos`→`politicas`), L5 unused-import cleanup. **⬜ Still deferred (pre-existing, future phases):** (b) `recuperaProdutosCardapio` JOIN can duplicate a produto with >1 receita — add `DISTINCT`/UNIQUE (P3); (c) `preco int` centavos vs `double` discount math — round/`BigDecimal` when the cost formula is wired (P2) and fix `preco bigint`-vs-`int` (P3); (e-sec) H2 console open + `jdbc: DEBUG` logging — kept for the course demo, lock down with auth (P5).
 
 ---
 
@@ -476,6 +481,8 @@ Per-phase: add the new endpoints' curl checks to the Progress Log when you imple
 
 > Each session adds a dated entry: what changed, which phase/UCs, test status, follow-ups.
 
+- **2026-06-09** — **P1 IMPLEMENTED & VERIFIED → ✅ complete.** All UC1–UC5 done: cardápio corrente (UC2/UC5) + discount service (UC3/UC4) with 3 strategies, runtime-switchable & persisted via the `configuracao` k/v table (H2 `MERGE`), 400-on-unknown via `@RestControllerAdvice`. **18 new + 5 test + 6 edited files; suite 22→45 tests, all green; live HTTP smoke incl. both 400s passed.** Built/ran with **JDK 21** (system default is 17 — set `JAVA_HOME` to the bundled 21; `spring-boot:run` needs network, not `-o`). Adversarial review workflow (4 reviewers + skeptics): **0 confirmed HIGH/CRITICAL**; applied 4 hardening fixes (null-guard, safe parse, deterministic order, context validation); pre-existing issues deferred to §13 #6. Report: [`reports/cardapio-corrente-e-descontos-report.md`](reports/cardapio-corrente-e-descontos-report.md); plan archived to `plans/completed/`. **Not committed** (awaiting user). Next: **P2 (UC6–UC9)**.
+- **2026-06-08** — **P1 plan created** at [`plans/completed/cardapio-corrente-e-descontos.plan.md`](plans/completed/cardapio-corrente-e-descontos.plan.md) (single-pass, confidence 9/10) via a 7-reader + audit workflow. Grep confirmed the repo has **no JDBC write path, no `@PutMapping`/`@RequestBody`/`ResponseEntity`/advice, no Mockito** — so the plan introduces 5 net-new patterns (H2 `MERGE` upsert, global `@RestControllerAdvice` 400, runtime-switchable factory, `ContextoDesconto` loyalty param, fake-repo tests). Scope: 16 new + 6 edited files, 11 tasks. P1 flipped `pending → in-progress`. Open questions #1 and #4 resolved (see §13). No production code changed yet — next step: `/prp-implement`.
 - **2026-06-08** — PRD created from `TF_2026_1_Pizzaria.pdf` + full codebase analysis (8-cluster exploration). Baseline confirmed: study-case menu flow (UC1/UC5 partial) and Imposto strategy service (≥2 strategies) complete = **P0 ✅**. Next pending phase: **P1 (UC1–UC5)** — cardápio corrente + Descontos service mirroring Imposto. No code changed in this session.
 
 ---
