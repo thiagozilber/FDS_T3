@@ -9,7 +9,7 @@
 - **Source spec:** `TF_2026_1_Pizzaria.pdf` (Prof. Bernardo Copstein), at the `t3/` workspace root (one level above the project).
 - **Project root:** `ex5-pizzaria-clean-baseT1/`
 - **Base Java package:** `com.bcopstein.ex4_lancheriaddd_v1`
-- **Created:** 2026-06-08 · **Last updated:** 2026-06-08
+- **Created:** 2026-06-08 · **Last updated:** 2026-06-22
 - **Complexity:** XL (12 use cases, 8 domain services, JPA migration, authentication) — delivered in phases, not a single pass.
 
 ---
@@ -17,12 +17,14 @@
 ## 1. How future sessions use this document
 
 1. **Read sections 2–8** to load the system, the tech stack, the current state, and the **patterns to mirror**. The patterns section contains real snippets copied from the codebase — new code must be indistinguishable from existing code.
-2. **Find the next pending phase** in **§9 Implementation Phases** (status `pending`, dependencies satisfied). Today's date drives which milestone is next per the cronograma.
+2. **Find the next pending phase** in **§9 Implementation Phases** (status `pending`, dependencies satisfied). Today's date drives which milestone is next per the cronograma. **§9 now carries an Owner column; the full two-person split and the cross-phase seams are in §16 — read it before claiming work.**
 3. **Implement** following the per-phase task breakdown (§10) and the patterns (§6).
 4. **Update**: flip the phase status (`pending → in-progress → complete`), tick UC/service status tables (§7/§8), append a dated entry to the **Progress Log (§14)**, and record any new decisions (§13).
 5. **Verify** with the validation commands (§12) before marking anything complete.
 
 **Status legend:** ✅ complete · 🟡 partial / scaffolded · 🔜 next up · ⬜ not started
+
+> **Ownership labels:** phases are `P0–P7`; people are **`Pessoa 1`** and **`Pessoa 2`** (never abbreviated to `P1/P2` — that means *phases*). See §16.
 
 ---
 
@@ -294,7 +296,7 @@ public class CozinhaService implements ICozinhaService {
 }
 ```
 Rules for fakes: define an `IXxxService` interface in `Dominio.Servicos`; the fake implements it. Simulate timed transitions with `ScheduledExecutorService`; guard shared state with `synchronized`.
-> ⚠️ **Gotcha:** `CozinhaService` has **no `@Service` annotation** and a no-arg constructor — it is not currently a managed bean. For UC9 you will need status changes **persisted to the DB**; either annotate it `@Service` and inject a repository, or wrap it. When mirroring for Entrega/Pagamento, decide bean management up front. Spec allows Pagamento to be a "fake" that always reports success.
+> ⚠️ **Gotcha:** `CozinhaService` has **no `@Service` annotation** and a no-arg constructor — it is not currently a managed bean. For UC9 you will need status changes **persisted to the DB**; either annotate it `@Service` and inject a repository, or wrap it. When mirroring for Entrega/Pagamento, decide bean management up front. Spec allows Pagamento to be a "fake" that always reports success. **→ Resolved by Seam #2 (§13/§16): annotate `@Service`, inject `ServicoPedido`, and route status persistence through it.**
 
 ### 6.8 Tests — JUnit 5, pure-logic without Spring, integration with `@SpringBootTest`
 ```java
@@ -320,7 +322,7 @@ Rules: `*Test` class suffix, descriptive `void` method names, `DELTA` for double
 
 ## 7. Use Case catalog (UC1–UC12)
 
-`(Adm)` = authenticated admin · `(A)` = authenticated customer. Auth itself lands in the 24/06 phase; until then, build the endpoints and treat the actor as a parameter/header.
+`(Adm)` = authenticated admin · `(A)` = authenticated customer. Auth itself lands in the 24/06 phase; until then, build the endpoints and treat the actor as a parameter/header. **Owner per UC is in §16.**
 
 | UC | Name | Actor | Status | Suggested endpoint | Touches | Acceptance |
 |---|---|---|---|---|---|---|
@@ -346,10 +348,10 @@ Rules: `*Test` class suffix, descriptive `void` method names, `DELTA` for double
 | **Impostos** | ✅ | `ServicoImposto` + `Imposto/` strategy pkg | ≥2 strategies done; env-var configurable |
 | **Descontos** | ✅ | `ServicoDesconto` + `Desconto/` strategy pkg | 3 strategies (SemDesconto/Fidelidade7/PromocaoVerao); runtime-switchable (UC4), persisted via `configuracao`; `calcular` returns the discount **amount** w/ `ContextoDesconto` |
 | **Cardápio** | 🟡 | `CardapioService` | "cardápio corrente" ✅ (UC2/UC5); indisponibilidade of items still pending (UC6, P2) |
-| **Pedidos** | ⬜ | `ServicoPedido` (NEW) | Validate order consistency, compute values → calls Imposto + Desconto; drives the status machine |
+| **Pedidos** | ⬜ | `ServicoPedido` (NEW) | Validate order consistency, compute values → calls Imposto + Desconto; drives the status machine. **Sole writer of `historico_status` — Seam #2.** |
 | **Estoque** | ⬜ | `ServicoEstoque` (NEW) | Holds available ingredient portions (incl. beverages); checks/decrements stock for an order |
-| **Cozinha** | 🟡 | `ICozinhaService`/`CozinhaService` | Simulated; must **persist** status changes to DB for UC9 |
-| **Entrega** | ⬜ | `IEntregaService` + fake (NEW) | Simulate like Cozinha; assign courier; persist TRANSPORTE→ENTREGUE |
+| **Cozinha** | 🟡 | `ICozinhaService`/`CozinhaService` | Simulated; must **persist** status changes to DB for UC9 — via `ServicoPedido` callback (Seam #2) |
+| **Entrega** | ⬜ | `IEntregaService` + fake (NEW) | Simulate like Cozinha; assign courier; persist TRANSPORTE→ENTREGUE via `ServicoPedido` (Seam #2) |
 | **Pagamento** | ⬜ | `IPagamentoService` + fake (NEW) | Fake that always returns "paid" |
 
 > **Design constraint (spec):** every service that starts as a fake/simplification must sit **behind an interface** to allow swapping for a real implementation later. Imposto and Desconto must be designed for frequent formula changes (strategy pattern — already the model).
@@ -358,20 +360,22 @@ Rules: `*Test` class suffix, descriptive `void` method names, `DELTA` for double
 
 ## 9. Implementation Phases (the cronograma — drives "next pending")
 
-Update the **Status** column as you go. Each phase depends on the prior unless noted.
+Update the **Status** column as you go. Each phase depends on the prior unless noted. **Owner** = who drives that phase; full task-level split is in **§16**. Labels `Pessoa 1`/`Pessoa 2` (never `P1/P2` — those are phases).
 
-| # | Date | Phase | Use cases / deliverable | Depends on | Status |
-|---|---|---|---|---|---|
-| P0 | 08/06/2026 | Definição + estudo de caso rodando | App boots, menu UCs run, Imposto service | — | ✅ complete |
-| P1 | 10/06/2026 | Cardápio corrente + Descontos | UC1, UC2, UC3, UC4, UC5 | P0 | ✅ complete — [plan](plans/completed/cardapio-corrente-e-descontos.plan.md) · [report](reports/cardapio-corrente-e-descontos-report.md) |
-| **P2** | **15/06/2026** | **Ciclo do pedido** | **UC6, UC7, UC8, UC9** (+ Pedidos, Estoque, Pagamento, Entrega services) | P1 | **🔜 next — pending** |
-| P3 | 17/06/2026 | Persistência com JPA | Migrate JDBC repos → JPA; entities annotated | P2 | ⬜ pending |
-| P4 | 22/06/2026 | Usuários + histórico | UC10, UC11, UC12 | P3 | ⬜ pending |
-| P5 | 24/06/2026 | Autenticação | Login/authorization enforced on `(A)`/`(Adm)` UCs | P4 | ⬜ pending |
-| P6 | 29/06/2026 | Drivers de teste | Tests (with comment-form specs) for: discount strategies, ServicoDesconto, ServicoImposto, SubmeterPedidoUC | P1–P5 | ⬜ pending |
-| P7 | 01/07/2026 | Apresentação | Demo; deliver source `.zip` to Moodle | all | ⬜ pending |
+| # | Date | Phase | Use cases / deliverable | Depends on | Owner | Status |
+|---|---|---|---|---|---|---|
+| P0 | 08/06/2026 | Definição + estudo de caso rodando | App boots, menu UCs run, Imposto service | — | ambos | ✅ complete |
+| P1 | 10/06/2026 | Cardápio corrente + Descontos | UC1, UC2, UC3, UC4, UC5 | P0 | ambos | ✅ complete — [plan](plans/completed/cardapio-corrente-e-descontos.plan.md) · [report](reports/cardapio-corrente-e-descontos-report.md) |
+| **P2** | **15/06/2026** | **Ciclo do pedido** | **UC6, UC7, UC8, UC9** (+ Pedidos, Estoque, Pagamento, Entrega services) | P1 | **Pessoa 1 (lead) · Pessoa 2 (sims Cozinha/Entrega)** — Seams #1, #2 | **🔜 next — pending** |
+| P3 | 17/06/2026 | Persistência com JPA | Migrate JDBC repos → JPA; entities annotated | P2 | **Pessoa 2 (framework) · ambos (repos próprios)** — Seam #3 | ⬜ pending |
+| P4 | 22/06/2026 | Usuários + histórico | UC10, UC11, UC12 | P3 | **Pessoa 2 (UC11/UC12) · Pessoa 1 (UC10)** — Seam #4 | ⬜ pending |
+| P5 | 24/06/2026 | Autenticação | Login/authorization enforced on `(A)`/`(Adm)` UCs | P4 | **Pessoa 2** | ⬜ pending |
+| P6 | 29/06/2026 | Drivers de teste | Tests (with comment-form specs) for: discount strategies, ServicoDesconto, ServicoImposto, SubmeterPedidoUC | P1–P5 | **dividido — Pessoa 1 (Pedido/Estoque) · Pessoa 2 (Desconto/Imposto/Auth)** | ⬜ pending |
+| P7 | 01/07/2026 | Apresentação | Demo; deliver source `.zip` to Moodle | all | ambos | ⬜ pending |
 
-> **Team note (spec):** balanced commits/PRs per member are graded; members without provable contributions get no grade. A project leader owns the base repo.
+> **Team note (spec):** balanced commits/PRs per member are graded; members without provable contributions get no grade. A project leader owns the base repo. **→ Load is front-loaded onto Pessoa 1 (P2 is critical-path); see §16 "Load balancing" for the interleave that keeps contributions even over time.**
+>
+> ⚠️ **Schedule reality (2026-06-22):** the cronograma dates for P2 (15/06) and P3 (17/06) have passed while the last logged milestone is P1 (✅ 09/06). P2–P3 are therefore late and strict phase-gating is no longer affordable — the parallelism in §16 is what recovers the schedule, **contingent on Seams #1 and #2 being locked before P2 coding begins.** No phase statuses are changed by this note; it records the calendar, not new progress.
 
 ---
 
@@ -407,25 +411,31 @@ Update the **Status** column as you go. Each phase depends on the prior unless n
 **P1 acceptance:** `GET /descontos/politicas` lists ≥3 codes; `PUT /descontos/corrente` switches policy and persists; `GET /cardapio/corrente` returns the menu set by `PUT /cardapio/corrente/{id}`; existing Imposto/menu behavior unchanged; `./mvnw test` green.
 
 ### ▶ P2 (15/06) — Order cycle (UC6–UC9) — outline
-- **Estoque:** `ItensEstoqueRepository` (table `itensEstoque` exists) + `ServicoEstoque` with `verificaDisponibilidade(pedido)` and `baixaEstoque(pedido)` (portions per recipe).
-- **ServicoPedido:** consistency check → stock check (mark unfulfillable cardápio items indisponível) → NOVO→APROVADO → cost = `(Σ itens − desconto) + imposto` via `ServicoImposto` + `ServicoDesconto`.
-- `PedidoRepository` + tables `pedidos`, `itens_pedido`, `historico_status` (status + timestamp).
-- UC7 status lookup; UC8 cancel (only APROVADO & not PAGO); UC9 pay → `ServicoPagamento` (fake) → Cozinha (sim, persist) → Entrega (sim, persist), each transition timestamped.
+> **Ownership:** Pessoa 1 builds the order flow; Pessoa 2 builds the Cozinha/Entrega/Pagamento simulations. **Freeze Seam #1 (service interfaces) and Seam #2 (`historico_status` single writer) before either starts.** See §16.
+- **Estoque (Pessoa 1):** `ItensEstoqueRepository` (table `itensEstoque` exists) + `ServicoEstoque` with `verificaDisponibilidade(pedido)` and `baixaEstoque(pedido)` (portions per recipe).
+- **ServicoPedido (Pessoa 1):** consistency check → stock check (mark unfulfillable cardápio items indisponível) → NOVO→APROVADO → cost = `(Σ itens − desconto) + imposto` via `ServicoImposto` + `ServicoDesconto`. **Owns all status transitions via `registrarTransicao(pedidoId, novoStatus)` (timestamped) — Seam #2.**
+- `PedidoRepository` + tables `pedidos`, `itens_pedido`, `historico_status` (status + timestamp) — **Pessoa 1**.
+- UC7 status lookup; UC8 cancel (only APROVADO & not PAGO) — **Pessoa 1**.
+- UC9 pay → `ServicoPagamento` (fake, **Pessoa 2**) → Cozinha (sim, **Pessoa 2**) → Entrega (sim, **Pessoa 2**), each transition timestamped **through `ServicoPedido` (Pessoa 1)**. The pay endpoint/trigger is **Pessoa 1**.
 - **`SubmeterPedidoParaAprovacaoUC`** is a required test target in P6 — keep it cleanly testable.
 
 ### ▶ P3 (17/06) — JPA migration — outline
+> **Ownership (Seam #3):** Pessoa 2 owns the migration **framework decision** (resolves open question #2) + adds `spring-boot-starter-data-jpa` + decides `ddl-auto`/init-mode. Then **each person migrates their own repos** against that agreed pattern. Do it on a branch; do not edit shared entities simultaneously.
 - Add `spring-boot-starter-data-jpa`; annotate entities (`@Entity/@Id/@ManyToMany/@OneToMany`) — note this **adds framework annotations to the domain**, a tension with the current pure-POJO rule; the class may prefer a separate persistence-model or accept JPA on entities. Decide and record in §13.
 - Replace `*JDBC` adapters with Spring Data repositories implementing the same `Dominio.Dados` ports. Revisit `spring.sql.init` vs `ddl-auto`. `preco` is `bigint` in schema but read as `int` in code — fix the type mismatch here.
 
 ### ▶ P4 (22/06) — UC10/UC11/UC12 — outline
+> **Ownership:** Pessoa 2 = UC11/UC12 (users/login); Pessoa 1 = UC10 (delivered-orders query, since it reads `pedidos` — Seam #4).
 - UC11 register: add `senha` to `Cliente` + `clientes` table; `ClienteRepository` + `ServicoCliente`; validate uniqueness of email.
-- UC12 login skeleton; UC10 delivered-orders-between-dates query.
+- UC12 login skeleton; UC10 delivered-orders-between-dates query (`PedidoRepository.pedidosEntreguesEntre(ini, fim)`).
 
 ### ▶ P5 (24/06) — Authentication — outline
+> **Ownership:** Pessoa 2 (full). The security config/filter wraps Pessoa 1's `/pedidos/*` controllers — coordinate how the authenticated cliente reaches `ServicoPedido`.
 - Enforce auth on `(A)`/`(Adm)` endpoints (Spring Security or a token filter). Username = email. Distinguish admin vs customer roles.
 
 ### ▶ P6 (29/06) — Test drivers — outline
-- Unit + integration drivers with **test cases written as comments in the same file** (spec) for: each discount strategy, `ServicoDesconto`, `ServicoImposto`, `SubmeterPedidoParaAprovacaoUC`. Target ≥80% on these.
+> **Ownership:** Pessoa 1 = `SubmeterPedidoParaAprovacaoUC`, `ServicoPedido`, `ServicoEstoque`. Pessoa 2 = discount strategies, `ServicoDesconto`, `ServicoImposto`, auth.
+- Unit + integration drivers with **test cases written as comments in the same file** (spec) for the targets above. Target ≥80% on these.
 
 ---
 
@@ -433,10 +443,10 @@ Update the **Status** column as you go. Each phase depends on the prior unless n
 
 **Existing tables (`schema.sql`):** `clientes(cpf pk, nome, celular, endereco, email)` · `ingredientes(id pk, descricao)` · `itensEstoque(id pk, quantidade, ingrediente_id→ingredientes)` · `receitas(id pk, titulo)` · `receita_ingrediente(receita_id, ingrediente_id)` · `produtos(id pk, descricao, preco bigint)` · `produto_receita(produto_id, receita_id)` · `cardapios(id pk, titulo)` · `cardapio_produto(cardapio_id, produto_id)`.
 
-**Tables/columns to add (by phase):**
-- P1: `configuracao(chave varchar pk, valor varchar)` — stores `cardapio_corrente` and `desconto_corrente`. (Seed defaults in `data.sql`.)
-- P2: `pedidos(id, cliente_cpf, status, valor, impostos, desconto, valor_cobrado, data_hora_pagamento, endereco_entrega)`, `itens_pedido(pedido_id, produto_id, quantidade)`, `historico_status(pedido_id, status, data_hora)`. Possibly `entregadores`.
-- P4/P5: `clientes.senha` column; role/`usuarios` if separating admin.
+**Tables/columns to add (by phase + owner):**
+- P1 (ambos, done): `configuracao(chave varchar pk, valor varchar)` — stores `cardapio_corrente` and `desconto_corrente`. (Seed defaults in `data.sql`.)
+- P2 (**Pessoa 1**): `pedidos(id, cliente_cpf, status, valor, impostos, desconto, valor_cobrado, data_hora_pagamento, endereco_entrega)`, `itens_pedido(pedido_id, produto_id, quantidade)`, `historico_status(pedido_id, status, data_hora)`. Possibly `entregadores` (**Pessoa 2**, if the Entrega sim needs persisted couriers).
+- P4/P5 (**Pessoa 2**): `clientes.senha` column; role/`usuarios` if separating admin.
 
 > Reminder: `clientes` currently has **no `senha`**, and the delivery address is collected **per order** (UC6), distinct from the customer's registered `endereco`.
 
@@ -466,13 +476,19 @@ Per-phase: add the new endpoints' curl checks to the Progress Log when you imple
 - _2026-06-08 (P1 plan)_: **`FabricaEstrategiaDesconto` does NOT take a config/`Properties` bean** (unlike Imposto) and has **no no-arg `criar()`**. The active policy is read from `DescontoRepository` at call time so UC4 can switch it at **runtime**.
 - _2026-06-08 (P1 plan)_: **400-on-unknown-code** is delivered by a new global `@RestControllerAdvice` (`IllegalArgumentException→400`, `IllegalStateException→500`); no `ResponseEntity`/advice precedent existed. Affects all endpoints (intentional, semantically correct).
 - _2026-06-08 (P1 plan)_: **UC4 uses `PUT /descontos/corrente/{codigo}` (path var)**, not a JSON body — no `@RequestBody` precedent, codes are path-safe.
+- _2026-06-22 (divisão de trabalho)_: **Adopted a two-person split** — **Pessoa 1** = Pedidos / fluxo de negócio; **Pessoa 2** = Usuários, cardápio, descontos e infraestrutura. Full task-level breakdown in **§16**; per-phase Owner column added to §9. Labels `Pessoa 1/2` are used everywhere to avoid colliding with the phase labels `P0–P7`.
+- _2026-06-22 (Seam #1 — service interfaces, P2)_: `IPagamentoService`, `ICozinhaService`, `IEntregaService` **method signatures are agreed jointly and frozen BEFORE any P2 implementation starts.** This contract is what lets Pessoa 1 (order flow) and Pessoa 2 (sims) work in parallel instead of serializing on integration. `ICozinhaService` already exists (§6.7) — review and freeze it; define the other two to match its shape. **[Action: 30-min sync to sign off signatures; record final signatures here when done.]**
+- _2026-06-22 (Seam #2 — `historico_status` single writer, P2)_: **`ServicoPedido` (Pessoa 1) is the SOLE writer of `historico_status`.** All status transitions go through one method, e.g. `registrarTransicao(long pedidoId, Pedido.Status novo)`, which stamps the timestamp. Cozinha/Entrega (Pessoa 2) **call back into `ServicoPedido`** rather than writing the table directly. This keeps the write path + timestamp logic single-owner (no merge conflicts on the table) and **resolves open question #3**: annotate `CozinhaService @Service`, inject `ServicoPedido` (or a narrow port), same for the Entrega fake.
+- _2026-06-22 (Seam #3 — JPA ownership, P3)_: **Pessoa 2 owns the JPA framework decision** (resolves open question #2 — annotate entities vs. separate persistence model), adds `spring-boot-starter-data-jpa`, and decides `ddl-auto`/init-mode. **Then each person migrates their OWN repos** against that agreed pattern (Pessoa 1: `Pedido*`, `ItensEstoque`; Pessoa 2: `Cliente`, cardápio, desconto). Migrate on a branch; never edit shared entities at the same time.
+- _2026-06-22 (Seam #4 — UC10 ownership, P4)_: UC10 (listar entregues entre datas) reads `pedidos`, so the query `pedidosEntreguesEntre(ini, fim)` lives on `PedidoRepository` (**Pessoa 1**). **Recommendation: Pessoa 1 owns the full UC10** (UC + Controller + Presenter) since it is a pedido query — this moves UC10 off Pessoa 2's original list. Alternative: Pessoa 1 exposes the repo query, Pessoa 2 builds the UC on top. **[Team: pick one and mark resolved.]**
+- _2026-06-22 (load balancing / cronograma)_: P2 is critical-path and almost entirely Pessoa 1, while Pessoa 2's heavy new work (auth, users) is later and their cardápio/descontos work is already done. To keep commits balanced over time (grading note, §9) and avoid idle gaps: **during P2, Pessoa 2 builds `Cliente`+`senha` / `ServicoCliente` / the auth skeleton (all independent of the order cycle) plus the Cozinha/Entrega/Pagamento sims; once P2 ships, Pessoa 1 picks up JPA-of-own-repos + UC10.** As of 2026-06-22 the P2/P3 cronograma dates have passed (see §9 schedule note) — this interleave is also the recovery plan, contingent on Seams #1 and #2 being locked first.
 
 **Open questions for future sessions (resolve and record):**
 1. ~~**Persistence of "corrente" state vs DB reset on boot.**~~ **Resolved (P1):** accepted; `configuracao` defaults re-seeded in `data.sql` each boot; runtime switches are session-scoped. Revisit during JPA phase (P3).
-2. **JPA vs pure-POJO domain.** Annotating entities with JPA breaks the current "no framework annotations in `Dominio.Entidades`" rule. Choose: annotate entities, or introduce separate persistence models. (P3)
-3. **Cozinha/Entrega bean management.** `CozinhaService` is not Spring-managed; UC9 needs persisted status changes. Decide annotation/wiring. (P2)
+2. **JPA vs pure-POJO domain.** Annotating entities with JPA breaks the current "no framework annotations in `Dominio.Entidades`" rule. Choose: annotate entities, or introduce separate persistence models. (P3) **→ Owner: Pessoa 2 (Seam #3) decides; record the choice here.**
+3. ~~**Cozinha/Entrega bean management.**~~ **Resolved (Seam #2):** annotate `@Service`, inject `ServicoPedido`, persist status changes through `registrarTransicao(...)`. (P2)
 4. ~~**Discount `calcular` signature.**~~ **Resolved (P1):** `calcular(double subtotalItens, ContextoDesconto contexto)` where `ContextoDesconto(int pedidosUltimos20Dias)` is **caller-supplied** (no `pedidos` persistence yet); returns the discount **amount**. Real order-counting waits for `PedidoRepository` (P2).
-5. **Auth mechanism.** Spring Security vs lightweight token filter. (P5)
+5. **Auth mechanism.** Spring Security vs lightweight token filter. (P5) **→ Owner: Pessoa 2.**
 6. **Issues from the P1 review.** **✅ Addressed in the fix-up pass (2026-06-09):** (a) `GET /cardapio/{id}` unknown id → **404** via `RecursoNaoEncontradoException`, plus numeric path type-mismatch → 400; (d) `Adaptadores.Dados` stereotypes normalized to **`@Repository`**; (e-cors) per-method `@CrossOrigin("*")` replaced by a centralized, configurable `CorsConfig` (`app.cors.allowed-origins`); plus L1 `{codigo}` length bound, L2 Response/Presenter field alignment (`codigos`→`politicas`), L5 unused-import cleanup. **⬜ Still deferred (pre-existing, future phases):** (b) `recuperaProdutosCardapio` JOIN can duplicate a produto with >1 receita — add `DISTINCT`/UNIQUE (P3); (c) `preco int` centavos vs `double` discount math — round/`BigDecimal` when the cost formula is wired (P2) and fix `preco bigint`-vs-`int` (P3); (e-sec) H2 console open + `jdbc: DEBUG` logging — kept for the course demo, lock down with auth (P5).
 
 ---
@@ -481,6 +497,7 @@ Per-phase: add the new endpoints' curl checks to the Progress Log when you imple
 
 > Each session adds a dated entry: what changed, which phase/UCs, test status, follow-ups.
 
+- **2026-06-22** — **Division of labor recorded (no code change).** Added a two-person split (**Pessoa 1** = Pedidos/fluxo; **Pessoa 2** = Suporte/infra) as new **§16**, an **Owner** column to the §9 phase table, and four **seam decisions** to §13 (Seam #1 service-interface freeze, Seam #2 `historico_status` single writer + resolves OQ#3, Seam #3 JPA ownership, Seam #4 UC10 ownership) plus a load-balancing note. Annotated §6.7, §7, §8, §10, §11 with owners/seam pointers. Logged the **schedule reality**: P2 (15/06) and P3 (17/06) cronograma dates have passed with only P1 logged complete — phase-gating relaxed in favor of the §16 parallelism, contingent on Seams #1/#2 being locked before P2 coding. **No phase statuses changed; no production code touched.** Next: **P2 (UC6–UC9)** — start by freezing the three service interfaces.
 - **2026-06-09** — **P1 IMPLEMENTED & VERIFIED → ✅ complete.** All UC1–UC5 done: cardápio corrente (UC2/UC5) + discount service (UC3/UC4) with 3 strategies, runtime-switchable & persisted via the `configuracao` k/v table (H2 `MERGE`), 400-on-unknown via `@RestControllerAdvice`. **18 new + 5 test + 6 edited files; suite 22→45 tests, all green; live HTTP smoke incl. both 400s passed.** Built/ran with **JDK 21** (system default is 17 — set `JAVA_HOME` to the bundled 21; `spring-boot:run` needs network, not `-o`). Adversarial review workflow (4 reviewers + skeptics): **0 confirmed HIGH/CRITICAL**; applied 4 hardening fixes (null-guard, safe parse, deterministic order, context validation); pre-existing issues deferred to §13 #6. Report: [`reports/cardapio-corrente-e-descontos-report.md`](reports/cardapio-corrente-e-descontos-report.md); plan archived to `plans/completed/`. **Not committed** (awaiting user). Next: **P2 (UC6–UC9)**.
 - **2026-06-08** — **P1 plan created** at [`plans/completed/cardapio-corrente-e-descontos.plan.md`](plans/completed/cardapio-corrente-e-descontos.plan.md) (single-pass, confidence 9/10) via a 7-reader + audit workflow. Grep confirmed the repo has **no JDBC write path, no `@PutMapping`/`@RequestBody`/`ResponseEntity`/advice, no Mockito** — so the plan introduces 5 net-new patterns (H2 `MERGE` upsert, global `@RestControllerAdvice` 400, runtime-switchable factory, `ContextoDesconto` loyalty param, fake-repo tests). Scope: 16 new + 6 edited files, 11 tasks. P1 flipped `pending → in-progress`. Open questions #1 and #4 resolved (see §13). No production code changed yet — next step: `/prp-implement`.
 - **2026-06-08** — PRD created from `TF_2026_1_Pizzaria.pdf` + full codebase analysis (8-cluster exploration). Baseline confirmed: study-case menu flow (UC1/UC5 partial) and Imposto strategy service (≥2 strategies) complete = **P0 ✅**. Next pending phase: **P1 (UC1–UC5)** — cardápio corrente + Descontos service mirroring Imposto. No code changed in this session.
@@ -501,4 +518,49 @@ Per-phase: add the new endpoints' curl checks to the Progress Log when you imple
 | P2 | `src/test/.../Imposto/*Test.java` | Test conventions (§6.8) |
 | ref | `schema.sql`, `data.sql` | Current DB (§11) |
 | ref | `OrganizacaoEmPacotes.puml`, `DrgClasses4camadas.puml` | Architecture diagrams (§4) |
-```
+
+---
+
+## 16. Division of labor (two-person split)
+
+> **Added 2026-06-22.** This is the **ownership axis**, orthogonal to the **time/phase axis** in §9.
+> Phases say *when*; this says *who*. Where the two cross is a **seam** — those four contracts
+> (below) must be agreed before parallel work begins, or P2 serializes on integration and the
+> "balanced commits" grading risk returns. Labels: **Pessoa 1 / Pessoa 2** (never `P1/P2`).
+
+### Pessoa 1 — Pedidos e fluxo de negócio
+Owns the order cycle end-to-end.
+
+- **Entidades:** `Pedido`, `ItemPedido`.
+- **Serviços:** `ServicoPedido`, `ServicoEstoque`, `IPagamentoService` + `PagamentoFake`. *(Pagamento is Pessoa 1's per the original split; if Pessoa 2 prefers to own all three sims, move it — note it under Seam #1.)*
+- **Casos de uso:** UC6 (submeter), UC7 (status), UC8 (cancelar), **payment trigger of UC9** (POST `/pedidos/{id}/pagar` + orchestration), **UC10** (listar entregues — moved here per Seam #4).
+- **Persistência:** `PedidoRepository`, `ItensPedidoRepository`, `HistoricoStatusRepository`. **Sole writer of `historico_status` (Seam #2).**
+- **Banco:** `pedidos`, `itens_pedido`, `historico_status`.
+- **Endpoints:** `POST /pedidos`, `GET /pedidos/{id}/status`, `POST /pedidos/{id}/cancelar`, `POST /pedidos/{id}/pagar`, `GET /pedidos/entregues`.
+- **Testes (P6):** `SubmeterPedidoParaAprovacaoUCTest`, `ServicoPedido`, `ServicoEstoque`.
+- **JPA (P3):** migrates own repos against Pessoa 2's framework decision (Seam #3).
+
+### Pessoa 2 — Usuários, cardápio, descontos e infraestrutura
+Owns everything that supports the system.
+
+- **Entidades:** `Cliente` (+ `senha` column, P4).
+- **Serviços:** `ServicoDesconto`, `ServicoImposto`, `CardapioService` *(all ✅ from P1)*; `ServicoCliente`; `ICozinhaService`/`CozinhaService`, `IEntregaService`/`EntregaService` (sims). *(Cozinha/Entrega persist status only by calling back into `ServicoPedido` — Seam #2.)*
+- **Casos de uso:** UC1–UC5 *(✅ done)*; the **Cozinha + Entrega half of UC9** (sims driven by Pessoa 1's pay trigger); UC11 (cadastro); UC12 (login).
+- **Persistência:** `ClienteRepository`; cardápio repos; desconto repo; **owns the JPA migration framework decision (Seam #3)** then migrates own repos.
+- **Banco:** `clientes.senha`; `entregadores` (if the Entrega sim needs persisted couriers); any auth tables.
+- **Endpoints:** `/cardapio/*`, `/descontos/*`, `POST /clientes`, `POST /auth/login`.
+- **Testes (P6):** discount strategies, `ServicoDesconto`, `ServicoImposto`, auth.
+
+### The four seams (where ownership crosses a phase dependency)
+
+These are the only places the split frays. Each is recorded as a dated decision in §13 — agree them **before** the relevant phase starts.
+
+| # | Seam | Phase | Risk if ignored | Resolution (see §13) |
+|---|---|---|---|---|
+| **#1** | Service interfaces `IPagamentoService` / `ICozinhaService` / `IEntregaService` | P2 | Pessoa 1 & Pessoa 2 can't work in parallel; P2 serializes | **Freeze signatures jointly before any P2 code.** 30-min sync; record final signatures in §13. |
+| **#2** | `historico_status` writes (Pessoa 2's sims trigger transitions on Pessoa 1's table) | P2 | Two writers → merge conflicts + duplicated timestamp logic | **`ServicoPedido` is sole writer** via `registrarTransicao(...)`; sims call back into it. Also resolves OQ#3 (annotate `CozinhaService @Service`, inject `ServicoPedido`). |
+| **#3** | JPA migration touches both people's repos at once | P3 | A shared refactor breaks both features simultaneously | **Pessoa 2 owns the framework decision** (OQ#2: annotate vs. separate model) + `ddl-auto`/init-mode; **each migrates own repos** on a branch; no simultaneous entity edits. |
+| **#4** | UC10 reads `pedidos` but was assigned to Pessoa 2 | P4 | Cross-ownership query, unclear who owns the read path | Query `pedidosEntreguesEntre(ini, fim)` lives on `PedidoRepository` (Pessoa 1). **Recommended: Pessoa 1 owns all of UC10.** Team to confirm. |
+
+### Load balancing over time (grading note)
+P2 is critical-path and almost all Pessoa 1; Pessoa 2's heavy work (auth, users) is later and their P1 work is done — so naïve phase-order leaves Pessoa 2 idle during P2, then front-loads grading risk. **Interleave instead:** during P2, Pessoa 2 builds `Cliente`+`senha` / `ServicoCliente` / auth skeleton (independent of the order cycle) **plus** the Cozinha/Entrega/Pagamento sims against the Seam #1 interfaces; once P2 ships, Pessoa 1 takes JPA-of-own-repos + UC10. This keeps commits/PRs balanced (spec grades provable per-member contribution) and is also the schedule-recovery plan given P2/P3 are already past their cronograma dates (§9).
