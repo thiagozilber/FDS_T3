@@ -52,7 +52,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  * 15. listarEntreguesIniAposFimLanca   : ini > fim -> IllegalArgumentException
  * 16. listarEntreguesDelegaAoRepo      : janela valida -> devolve o que o PedidoRepository retornou
  * (a semantica da janela [ini, fim) e do JOIN ENTREGUE e verificada no driver de integracao
- *  PedidoRepositoryEntreguesIT, que exercita o SQL real -- aqui o fake nao reimplementa o filtro.)
+ *  PedidoRepositoryEntreguesTest, que exercita o SQL real -- aqui o fake nao reimplementa o filtro.)
  */
 class ServicoPedidoTest {
     private static final double DELTA = 1e-9;

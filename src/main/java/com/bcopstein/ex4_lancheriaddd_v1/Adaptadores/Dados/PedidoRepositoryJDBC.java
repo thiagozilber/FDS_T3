@@ -110,14 +110,15 @@ public class PedidoRepositoryJDBC implements PedidoRepository {
                      "p.valor_cobrado, p.data_hora_pagamento, p.endereco_entrega, " +
                      "h.data_hora AS data_hora_entrega " +
                      "FROM pedidos p JOIN historico_status h ON h.pedido_id = p.id " +
-                     "WHERE h.status = '" + Pedido.Status.ENTREGUE.name() + "' " +
+                     "WHERE h.status = ? " +
                      "AND h.data_hora >= ? AND h.data_hora < ? " +
                      "ORDER BY h.data_hora ASC, p.id ASC";
         return this.jdbcTemplate.query(
             sql,
             ps -> {
-                ps.setTimestamp(1, Timestamp.valueOf(ini));
-                ps.setTimestamp(2, Timestamp.valueOf(fim));
+                ps.setString(1, Pedido.Status.ENTREGUE.name());
+                ps.setTimestamp(2, Timestamp.valueOf(ini));
+                ps.setTimestamp(3, Timestamp.valueOf(fim));
             },
             (rs, rowNum) -> new PedidoEntregue(
                 mapeiaPedido(rs),
