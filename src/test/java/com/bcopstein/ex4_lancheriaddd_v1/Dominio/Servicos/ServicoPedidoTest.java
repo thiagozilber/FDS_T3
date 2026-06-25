@@ -51,6 +51,9 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  * 14. listarEntreguesDatasNulasLanca   : ini ou fim null -> IllegalArgumentException
  * 15. listarEntreguesIniAposFimLanca   : ini > fim -> IllegalArgumentException
  * 16. listarEntreguesDelegaAoRepo      : janela valida -> devolve o que o PedidoRepository retornou
+ * 17. historicoRetornaTransicoesDoPedido : pedido existente -> historico [NOVO, APROVADO] direto do servico
+ * 18. submeterItensNulosLanca          : itens null -> IllegalArgumentException (guarda de nulo)
+ * 19. submeterEnderecoNuloLanca        : endereco null -> IllegalArgumentException (guarda de nulo)
  * (a semantica da janela [ini, fim) e do JOIN ENTREGUE e verificada no driver de integracao
  *  PedidoRepositoryEntreguesTest, que exercita o SQL real -- aqui o fake nao reimplementa o filtro.)
  */
@@ -333,5 +336,31 @@ class ServicoPedidoTest {
         assertEquals(7L, resultado.get(0).pedido().getId());
         assertEquals(Pedido.Status.ENTREGUE, resultado.get(0).pedido().getStatus());
         assertEquals(entrega, resultado.get(0).dataHoraEntrega());
+    }
+
+    // ----- historico + guardas de nulo -----
+
+    @Test
+    void historicoRetornaTransicoesDoPedido() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        Pedido pedido = servico.submeter(cliente, "Rua X, 10", cestaPadrao());
+        List<TransicaoStatus> historico = servico.historico(pedido.getId());
+        assertEquals(2, historico.size());
+        assertEquals(Pedido.Status.NOVO, historico.get(0).status());
+        assertEquals(Pedido.Status.APROVADO, historico.get(1).status());
+    }
+
+    @Test
+    void submeterItensNulosLanca() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        assertThrows(IllegalArgumentException.class,
+            () -> servico.submeter(cliente, "Rua X, 10", null));
+    }
+
+    @Test
+    void submeterEnderecoNuloLanca() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        assertThrows(IllegalArgumentException.class,
+            () -> servico.submeter(cliente, null, cestaPadrao()));
     }
 }

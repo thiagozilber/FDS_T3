@@ -46,6 +46,9 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  *  3. submeterCarrinhoVazioLanca        : itens vazios -> IllegalArgumentException
  *  4. submeterSemEstoqueRetornaRecusado : ingrediente zerado -> RECUSADO + itensIndisponiveis com a descricao
  *  5. quantidadeInvalidaLanca           : quantidade 0 -> IllegalArgumentException
+ *  6. itensDuplicadosSaoAgregados       : 2 requests do mesmo produto (1+2) -> agregados, valor 165, APROVADO
+ *  7. requestNuloLanca                  : req null -> IllegalArgumentException (guarda de nulo)
+ *  8. itensNulosLanca                   : req.itens() null -> IllegalArgumentException (guarda de nulo)
  */
 class SubmeterPedidoParaAprovacaoUCTest {
     private static final double DELTA = 1e-9;
@@ -193,6 +196,29 @@ class SubmeterPedidoParaAprovacaoUCTest {
         SubmeterPedidoParaAprovacaoUC uc = montar(estoqueCheio());
         SubmeterPedidoRequest req = new SubmeterPedidoRequest("9001", "Rua X, 10",
             List.of(new ItemPedidoRequest(1L, 0)));
+        assertThrows(IllegalArgumentException.class, () -> uc.run(req));
+    }
+
+    @Test
+    void itensDuplicadosSaoAgregados() {
+        SubmeterPedidoParaAprovacaoUC uc = montar(estoqueCheio());
+        SubmeterPedidoRequest req = new SubmeterPedidoRequest("9001", "Rua X, 10",
+            List.of(new ItemPedidoRequest(1L, 1), new ItemPedidoRequest(1L, 2))); // mesmo produto, 1+2
+        SubmeterPedidoResponse resp = uc.run(req);
+        assertEquals("APROVADO", resp.status());   // 3 x calabresa(55.00) = 165.00
+        assertEquals(165.0, resp.valor(), DELTA);
+    }
+
+    @Test
+    void requestNuloLanca() {
+        SubmeterPedidoParaAprovacaoUC uc = montar(estoqueCheio());
+        assertThrows(IllegalArgumentException.class, () -> uc.run(null));
+    }
+
+    @Test
+    void itensNulosLanca() {
+        SubmeterPedidoParaAprovacaoUC uc = montar(estoqueCheio());
+        SubmeterPedidoRequest req = new SubmeterPedidoRequest("9001", "Rua X, 10", null);
         assertThrows(IllegalArgumentException.class, () -> uc.run(req));
     }
 }
