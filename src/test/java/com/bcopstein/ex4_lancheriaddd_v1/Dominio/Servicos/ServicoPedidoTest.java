@@ -48,6 +48,11 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  * 11. cancelarInexistenteLanca         : cancelar(999) -> RecursoNaoEncontradoException
  * 12. pagoCarimbaDataHoraPagamento     : registrarTransicao(PAGO) -> dataHoraPagamento != null + historico inclui PAGO
  * 13. cancelarAprovadoDevolveEstoque   : cancelar APROVADO -> CANCELADO + estoque devolvido + historico inclui CANCELADO
+ * 14. listarEntreguesDatasNulasLanca   : ini ou fim null -> IllegalArgumentException
+ * 15. listarEntreguesIniAposFimLanca   : ini > fim -> IllegalArgumentException
+ * 16. listarEntreguesDelegaAoRepo      : janela valida -> devolve o que o PedidoRepository retornou
+ * (a semantica da janela [ini, fim) e do JOIN ENTREGUE e verificada no driver de integracao
+ *  PedidoRepositoryEntreguesIT, que exercita o SQL real -- aqui o fake nao reimplementa o filtro.)
  */
 class ServicoPedidoTest {
     private static final double DELTA = 1e-9;
@@ -59,6 +64,7 @@ class ServicoPedidoTest {
         private final Map<Long, LocalDateTime> pagamentos = new HashMap<>();
         private long seq = 0;
         int contagemPagos = 0;
+        List<PedidoEntregue> entreguesResult = new ArrayList<>(); // seedavel para o teste de delegacao (UC10)
 
         @Override public long salvar(Pedido pedido) {
             long id = ++seq;
@@ -76,6 +82,8 @@ class ServicoPedidoTest {
         @Override public void atualizaStatus(long id, Pedido.Status novo) { statusAtual.put(id, novo); }
         @Override public void atualizaDataHoraPagamento(long id, LocalDateTime quando) { pagamentos.put(id, quando); }
         @Override public int contarPedidosPagosCliente(String cpf, LocalDateTime desde) { return contagemPagos; }
+        // Delegacao pura: devolve o conjunto semeado (o filtro real da janela esta no SQL, coberto pela IT).
+        @Override public List<PedidoEntregue> entreguesEntre(LocalDateTime ini, LocalDateTime fim) { return entreguesResult; }
     }
 
     private static class FakeHistoricoStatusRepository implements HistoricoStatusRepository {
@@ -156,11 +164,12 @@ class ServicoPedidoTest {
     // Campos para inspecao apos montar()
     private FakeItensEstoqueRepository repoEstoque;
     private FakeHistoricoStatusRepository repoHistorico;
+    private FakePedidoRepository repoPedido;
 
     private ServicoPedido montar(String politica, int contagemPagos, Map<Long, Integer> stock) {
         repoEstoque = new FakeItensEstoqueRepository(stock);
         repoHistorico = new FakeHistoricoStatusRepository();
-        FakePedidoRepository repoPedido = new FakePedidoRepository();
+        repoPedido = new FakePedidoRepository();
         repoPedido.contagemPagos = contagemPagos;
         ServicoEstoque servicoEstoque = new ServicoEstoque(repoEstoque);
         return new ServicoPedido(repoPedido, repoHistorico, servicoEstoque,
@@ -289,5 +298,40 @@ class ServicoPedidoTest {
         assertEquals(100, repoEstoque.qtd(4L));
         List<TransicaoStatus> historico = repoHistorico.historico(pedido.getId());
         assertEquals(Pedido.Status.CANCELADO, historico.get(historico.size() - 1).status());
+    }
+
+    // ----- UC10: listarEntreguesEntre -----
+
+    @Test
+    void listarEntreguesDatasNulasLanca() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        LocalDateTime agora = LocalDateTime.now();
+        assertThrows(IllegalArgumentException.class, () -> servico.listarEntreguesEntre(null, agora));
+        assertThrows(IllegalArgumentException.class, () -> servico.listarEntreguesEntre(agora, null));
+    }
+
+    @Test
+    void listarEntreguesIniAposFimLanca() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        LocalDateTime ini = LocalDateTime.of(2026, 6, 30, 0, 0);
+        LocalDateTime fim = LocalDateTime.of(2026, 6, 1, 0, 0);
+        assertThrows(IllegalArgumentException.class, () -> servico.listarEntreguesEntre(ini, fim));
+    }
+
+    @Test
+    void listarEntreguesDelegaAoRepo() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        LocalDateTime entrega = LocalDateTime.of(2026, 6, 15, 19, 42);
+        Pedido entregue = new Pedido(7L, cliente, null, cestaPadrao(), Pedido.Status.ENTREGUE,
+            135.0, 13.5, 0.0, 148.5, "Rua X, 10");
+        repoPedido.entreguesResult = List.of(new PedidoEntregue(entregue, entrega));
+
+        List<PedidoEntregue> resultado = servico.listarEntreguesEntre(
+            LocalDateTime.of(2026, 6, 1, 0, 0), LocalDateTime.of(2026, 7, 1, 0, 0));
+
+        assertEquals(1, resultado.size());
+        assertEquals(7L, resultado.get(0).pedido().getId());
+        assertEquals(Pedido.Status.ENTREGUE, resultado.get(0).pedido().getStatus());
+        assertEquals(entrega, resultado.get(0).dataHoraEntrega());
     }
 }

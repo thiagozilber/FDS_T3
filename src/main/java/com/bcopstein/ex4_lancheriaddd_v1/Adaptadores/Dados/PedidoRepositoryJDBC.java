@@ -1,6 +1,8 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Dados;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
@@ -19,6 +21,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Cliente;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemPedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Pedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.PedidoEntregue;
 
 @Repository
 public class PedidoRepositoryJDBC implements PedidoRepository {
@@ -78,19 +81,47 @@ public class PedidoRepositoryJDBC implements PedidoRepository {
         List<Pedido> pedidos = this.jdbcTemplate.query(
             sql,
             ps -> ps.setLong(1, id),
-            (rs, rowNum) -> {
-                Cliente cliente = new Cliente(rs.getString("cliente_cpf"), null, null, null, null);
-                Timestamp pago = rs.getTimestamp("data_hora_pagamento");
-                LocalDateTime dataHoraPagamento = (pago == null) ? null : pago.toLocalDateTime();
-                List<ItemPedido> itens = recuperaItens(rs.getLong("id"));
-                return new Pedido(
-                    rs.getLong("id"), cliente, dataHoraPagamento, itens,
-                    Pedido.Status.valueOf(rs.getString("status")),
-                    rs.getDouble("valor"), rs.getDouble("impostos"),
-                    rs.getDouble("desconto"), rs.getDouble("valor_cobrado"),
-                    rs.getString("endereco_entrega"));
-            });
+            (rs, rowNum) -> mapeiaPedido(rs));
         return pedidos.isEmpty() ? null : pedidos.getFirst();
+    }
+
+    // Mapeia uma linha de pedidos -> Pedido (re-hidratando os itens). Compartilhado por
+    // recuperaPorId e entreguesEntre; a query precisa expor as colunas usadas aqui.
+    private Pedido mapeiaPedido(ResultSet rs) throws SQLException {
+        Cliente cliente = new Cliente(rs.getString("cliente_cpf"), null, null, null, null);
+        Timestamp pago = rs.getTimestamp("data_hora_pagamento");
+        LocalDateTime dataHoraPagamento = (pago == null) ? null : pago.toLocalDateTime();
+        List<ItemPedido> itens = recuperaItens(rs.getLong("id"));
+        return new Pedido(
+            rs.getLong("id"), cliente, dataHoraPagamento, itens,
+            Pedido.Status.valueOf(rs.getString("status")),
+            rs.getDouble("valor"), rs.getDouble("impostos"),
+            rs.getDouble("desconto"), rs.getDouble("valor_cobrado"),
+            rs.getString("endereco_entrega"));
+    }
+
+    // UC10 (Seam #4 / D15): pedidos cuja transicao ENTREGUE caiu em [ini, fim) -- filtra pelo
+    // carimbo em historico_status (pedidos nao tem coluna de data de entrega). Um pedido tem no
+    // maximo uma linha ENTREGUE (estado terminal, escritor unico Seam #2), logo nao precisa DISTINCT.
+    // A re-hidratacao de itens por linha e N+1, aceitavel na escala do trabalho (espelha recuperaPorId).
+    @Override
+    public List<PedidoEntregue> entreguesEntre(LocalDateTime ini, LocalDateTime fim) {
+        String sql = "SELECT p.id, p.cliente_cpf, p.status, p.valor, p.impostos, p.desconto, " +
+                     "p.valor_cobrado, p.data_hora_pagamento, p.endereco_entrega, " +
+                     "h.data_hora AS data_hora_entrega " +
+                     "FROM pedidos p JOIN historico_status h ON h.pedido_id = p.id " +
+                     "WHERE h.status = '" + Pedido.Status.ENTREGUE.name() + "' " +
+                     "AND h.data_hora >= ? AND h.data_hora < ? " +
+                     "ORDER BY h.data_hora ASC, p.id ASC";
+        return this.jdbcTemplate.query(
+            sql,
+            ps -> {
+                ps.setTimestamp(1, Timestamp.valueOf(ini));
+                ps.setTimestamp(2, Timestamp.valueOf(fim));
+            },
+            (rs, rowNum) -> new PedidoEntregue(
+                mapeiaPedido(rs),
+                rs.getTimestamp("data_hora_entrega").toLocalDateTime()));
     }
 
     private List<ItemPedido> recuperaItens(long pedidoId) {

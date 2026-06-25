@@ -70,6 +70,8 @@ class SubmeterPedidoParaAprovacaoUCTest {
         @Override public void atualizaStatus(long id, Pedido.Status novo) { statusAtual.put(id, novo); }
         @Override public void atualizaDataHoraPagamento(long id, LocalDateTime quando) { }
         @Override public int contarPedidosPagosCliente(String cpf, LocalDateTime desde) { return 0; }
+        @Override public java.util.List<com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.PedidoEntregue>
+            entreguesEntre(LocalDateTime ini, LocalDateTime fim) { return java.util.List.of(); }
     }
 
     private static class FakeHistoricoStatusRepository implements HistoricoStatusRepository {
