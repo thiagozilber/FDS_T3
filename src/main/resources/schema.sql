@@ -69,3 +69,35 @@ create table if not exists configuracao (
   chave varchar(50) not null primary key,
   valor varchar(100) not null
 );
+
+-- Ciclo do pedido (P2 / Pessoa 1): pedidos + itens + historico de status
+-- Valores monetarios em DOUBLE (reais), espelhando os campos double da entidade Pedido.
+create table if not exists pedidos (
+  id bigint auto_increment primary key,
+  cliente_cpf varchar(15) not null,
+  status varchar(20) not null,
+  valor double not null,
+  impostos double not null,
+  desconto double not null,
+  valor_cobrado double not null,
+  data_hora_pagamento timestamp,
+  endereco_entrega varchar(255) not null,
+  foreign key (cliente_cpf) references clientes(cpf)
+);
+
+create table if not exists itens_pedido (
+  pedido_id bigint not null,
+  produto_id bigint not null,
+  quantidade int not null,
+  primary key (pedido_id, produto_id),
+  foreign key (pedido_id) references pedidos(id),
+  foreign key (produto_id) references produtos(id)
+);
+
+create table if not exists historico_status (
+  id bigint auto_increment primary key,
+  pedido_id bigint not null,
+  status varchar(20) not null,
+  data_hora timestamp not null,
+  foreign key (pedido_id) references pedidos(id)
+);

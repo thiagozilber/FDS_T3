@@ -1,5 +1,6 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Apresentacao;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,6 +28,14 @@ public class RestExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<String> handleTipoInvalido(MethodArgumentTypeMismatchException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Parametro invalido: " + ex.getName());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<String> handleIntegridade(DataIntegrityViolationException ex) {
+        // Violacao de constraint causada por entrada do cliente (cliente_cpf inexistente, item duplicado,
+        // campo acima do limite) => 400. Mensagem generica para nao vazar detalhes do banco.
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body("Requisicao invalida: dados do pedido inconsistentes (cliente inexistente ou valores invalidos)");
     }
 
     @ExceptionHandler(IllegalStateException.class)
