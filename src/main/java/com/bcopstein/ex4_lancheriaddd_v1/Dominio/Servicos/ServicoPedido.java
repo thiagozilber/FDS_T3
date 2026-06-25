@@ -104,6 +104,19 @@ public class ServicoPedido implements IRegistradorStatus {
         return historicoStatusRepository.historico(id);
     }
 
+    // UC10: pedidos entregues no intervalo [ini, fim) (somente leitura, sem @Transactional).
+    // Recebe a janela ja expandida pela UC; valida apenas a consistencia ini <= fim.
+    public List<PedidoEntregue> listarEntreguesEntre(LocalDateTime ini, LocalDateTime fim) {
+        if (ini == null || fim == null) {
+            throw new IllegalArgumentException("Datas ini e fim sao obrigatorias");
+        }
+        if (ini.isAfter(fim)) {
+            throw new IllegalArgumentException(
+                "Data inicial nao pode ser posterior a final: " + ini + " > " + fim);
+        }
+        return pedidoRepository.entreguesEntre(ini, fim);
+    }
+
     // UC8: cancela apenas pedido APROVADO (e ainda nao pago). @Transactional: a transicao para
     // CANCELADO e a devolucao ao estoque (baixado na aprovacao) sao atomicas.
     @Transactional
