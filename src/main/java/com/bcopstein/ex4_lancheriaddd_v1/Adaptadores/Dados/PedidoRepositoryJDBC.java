@@ -22,8 +22,8 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
 
 @Repository
 public class PedidoRepositoryJDBC implements PedidoRepository {
-    private JdbcTemplate jdbcTemplate;
-    private ProdutosRepository produtosRepository;
+    private final JdbcTemplate jdbcTemplate;
+    private final ProdutosRepository produtosRepository;
 
     @Autowired
     public PedidoRepositoryJDBC(JdbcTemplate jdbcTemplate, ProdutosRepository produtosRepository) {
@@ -53,7 +53,11 @@ public class PedidoRepositoryJDBC implements PedidoRepository {
             ps.setString(8, pedido.getEnderecoEntrega());
             return ps;
         }, keyHolder);
-        long pedidoId = keyHolder.getKey().longValue();
+        Number chaveGerada = keyHolder.getKey();
+        if (chaveGerada == null) {
+            throw new IllegalStateException("Falha ao obter o id gerado do pedido");
+        }
+        long pedidoId = chaveGerada.longValue();
 
         for (ItemPedido item : pedido.getItens()) {
             this.jdbcTemplate.update(

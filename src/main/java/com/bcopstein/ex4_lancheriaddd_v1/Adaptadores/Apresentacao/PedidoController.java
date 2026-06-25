@@ -1,13 +1,17 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Apresentacao;
 
+import java.net.URI;
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Apresentacao.Presenters.PedidoStatusPresenter;
 import com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Apresentacao.Presenters.SubmeterPedidoPresenter;
@@ -23,10 +27,10 @@ import com.bcopstein.ex4_lancheriaddd_v1.Aplicacao.Responses.SubmeterPedidoRespo
 @RestController
 @RequestMapping("/pedidos")
 public class PedidoController {
-    private SubmeterPedidoParaAprovacaoUC submeterUC;
-    private ConsultarStatusPedidoUC consultarStatusUC;
-    private CancelarPedidoUC cancelarUC;
-    private PagarPedidoUC pagarUC;
+    private final SubmeterPedidoParaAprovacaoUC submeterUC;
+    private final ConsultarStatusPedidoUC consultarStatusUC;
+    private final CancelarPedidoUC cancelarUC;
+    private final PagarPedidoUC pagarUC;
 
     public PedidoController(SubmeterPedidoParaAprovacaoUC submeterUC,
                             ConsultarStatusPedidoUC consultarStatusUC,
@@ -39,10 +43,12 @@ public class PedidoController {
     }
 
     @PostMapping("")
-    public SubmeterPedidoPresenter submeter(@RequestBody SubmeterPedidoRequest req) {
+    public ResponseEntity<SubmeterPedidoPresenter> submeter(@Valid @RequestBody SubmeterPedidoRequest req) {
         SubmeterPedidoResponse r = submeterUC.run(req);
-        return new SubmeterPedidoPresenter(r.id(), r.status(), r.valor(), r.desconto(),
-            r.impostos(), r.valorCobrado(), r.itensIndisponiveis());
+        SubmeterPedidoPresenter presenter = new SubmeterPedidoPresenter(r.id(), r.status(), r.valor(),
+            r.desconto(), r.impostos(), r.valorCobrado(), r.itensIndisponiveis());
+        // 201 Created + Location apontando para o recurso de status do pedido recem-criado.
+        return ResponseEntity.created(URI.create("/pedidos/" + r.id() + "/status")).body(presenter);
     }
 
     @GetMapping("/{id}/status")

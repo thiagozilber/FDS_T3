@@ -14,7 +14,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.TransicaoStatus;
 
 @Repository
 public class HistoricoStatusRepositoryJDBC implements HistoricoStatusRepository {
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
     public HistoricoStatusRepositoryJDBC(JdbcTemplate jdbcTemplate) {

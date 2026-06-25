@@ -2,9 +2,11 @@ package com.bcopstein.ex4_lancheriaddd_v1.Aplicacao;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Aplicacao.Responses.PedidoStatusResponse;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Pedido;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.PagamentoRecusadoException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ICozinhaService;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.IPagamentoService;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoPedido;
@@ -14,9 +16,9 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoPedido;
 // por ServicoPedido (Seam #2); a sim de cozinha avanca PREPARACAO/PRONTO depois do handoff (Pessoa 2).
 @Component
 public class PagarPedidoUC {
-    private ServicoPedido servicoPedido;
-    private IPagamentoService pagamentoService;
-    private ICozinhaService cozinhaService;
+    private final ServicoPedido servicoPedido;
+    private final IPagamentoService pagamentoService;
+    private final ICozinhaService cozinhaService;
 
     @Autowired
     public PagarPedidoUC(ServicoPedido servicoPedido, IPagamentoService pagamentoService,
@@ -26,6 +28,8 @@ public class PagarPedidoUC {
         this.cozinhaService = cozinhaService;
     }
 
+    // @Transactional: pagamento + transicoes (PAGO, AGUARDANDO) + handoff de cozinha sao atomicos.
+    @Transactional
     public PedidoStatusResponse run(long idPedido) {
         Pedido pedido = servicoPedido.recuperaPorId(idPedido);
         if (pedido.getStatus() != Pedido.Status.APROVADO) {
@@ -33,7 +37,7 @@ public class PagarPedidoUC {
                 "Pedido nao esta apto a pagamento; status atual: " + pedido.getStatus());
         }
         if (!pagamentoService.processarPagamento(pedido)) {
-            throw new IllegalStateException("Falha no processamento do pagamento do pedido " + idPedido);
+            throw new PagamentoRecusadoException("Pagamento recusado para o pedido " + idPedido);
         }
         servicoPedido.registrarTransicao(idPedido, Pedido.Status.PAGO);
         servicoPedido.registrarTransicao(idPedido, Pedido.Status.AGUARDANDO);

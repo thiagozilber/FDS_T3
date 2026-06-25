@@ -12,7 +12,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemEstoque;
 
 @Repository
 public class ItensEstoqueRepositoryJDBC implements ItensEstoqueRepository {
-    private JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
     public ItensEstoqueRepositoryJDBC(JdbcTemplate jdbcTemplate) {
@@ -32,10 +32,24 @@ public class ItensEstoqueRepositoryJDBC implements ItensEstoqueRepository {
     }
 
     @Override
-    public void defineQuantidade(long ingredienteId, int novaQuantidade) {
-        String sql = "UPDATE itensEstoque SET quantidade = ? WHERE ingrediente_id = ?";
+    public boolean baixaSeDisponivel(long ingredienteId, int quantidade) {
+        // Baixa atomica e condicional: o WHERE quantidade >= ? garante que so decrementa quando ha
+        // saldo, num unico UPDATE. Retorna true se a linha foi afetada (baixou); false caso contrario.
+        String sql = "UPDATE itensEstoque SET quantidade = quantidade - ? " +
+                     "WHERE ingrediente_id = ? AND quantidade >= ?";
+        int linhasAfetadas = this.jdbcTemplate.update(sql, ps -> {
+            ps.setInt(1, quantidade);
+            ps.setLong(2, ingredienteId);
+            ps.setInt(3, quantidade);
+        });
+        return linhasAfetadas > 0;
+    }
+
+    @Override
+    public void devolve(long ingredienteId, int quantidade) {
+        String sql = "UPDATE itensEstoque SET quantidade = quantidade + ? WHERE ingrediente_id = ?";
         this.jdbcTemplate.update(sql, ps -> {
-            ps.setInt(1, novaQuantidade);
+            ps.setInt(1, quantidade);
             ps.setLong(2, ingredienteId);
         });
     }

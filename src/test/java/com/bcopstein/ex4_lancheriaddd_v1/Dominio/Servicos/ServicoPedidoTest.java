@@ -47,6 +47,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  * 10. cancelarApenasAprovado           : cancelar pedido PAGO -> IllegalArgumentException, status permanece PAGO
  * 11. cancelarInexistenteLanca         : cancelar(999) -> RecursoNaoEncontradoException
  * 12. pagoCarimbaDataHoraPagamento     : registrarTransicao(PAGO) -> dataHoraPagamento != null + historico inclui PAGO
+ * 13. cancelarAprovadoDevolveEstoque   : cancelar APROVADO -> CANCELADO + estoque devolvido + historico inclui CANCELADO
  */
 class ServicoPedidoTest {
     private static final double DELTA = 1e-9;
@@ -97,8 +98,14 @@ class ServicoPedidoTest {
             }
             return itens;
         }
-        @Override public void defineQuantidade(long ingredienteId, int novaQuantidade) {
-            estoque.put(ingredienteId, novaQuantidade);
+        @Override public boolean baixaSeDisponivel(long ingredienteId, int quantidade) {
+            int atual = estoque.getOrDefault(ingredienteId, 0);
+            if (atual < quantidade) return false;
+            estoque.put(ingredienteId, atual - quantidade);
+            return true;
+        }
+        @Override public void devolve(long ingredienteId, int quantidade) {
+            estoque.merge(ingredienteId, quantidade, Integer::sum);
         }
         int qtd(long ingredienteId) { return estoque.getOrDefault(ingredienteId, 0); }
     }
@@ -266,5 +273,21 @@ class ServicoPedidoTest {
         assertNotNull(servico.recuperaPorId(pedido.getId()).getDataHoraPagamento());
         List<TransicaoStatus> historico = repoHistorico.historico(pedido.getId());
         assertEquals(Pedido.Status.PAGO, historico.get(historico.size() - 1).status());
+    }
+
+    @Test
+    void cancelarAprovadoDevolveEstoque() {
+        ServicoPedido servico = montar("SemDesconto", 0, estoqueCheio());
+        Pedido pedido = servico.submeter(cliente, "Rua X, 10", cestaPadrao());
+        // baixa na aprovacao: ing1=97, ing2=97, ing3=99, ing4=98
+        servico.cancelar(pedido.getId());
+        assertEquals(Pedido.Status.CANCELADO, servico.recuperaPorId(pedido.getId()).getStatus());
+        // devolucao no cancelamento: o estoque volta ao original
+        assertEquals(100, repoEstoque.qtd(1L));
+        assertEquals(100, repoEstoque.qtd(2L));
+        assertEquals(100, repoEstoque.qtd(3L));
+        assertEquals(100, repoEstoque.qtd(4L));
+        List<TransicaoStatus> historico = repoHistorico.historico(pedido.getId());
+        assertEquals(Pedido.Status.CANCELADO, historico.get(historico.size() - 1).status());
     }
 }

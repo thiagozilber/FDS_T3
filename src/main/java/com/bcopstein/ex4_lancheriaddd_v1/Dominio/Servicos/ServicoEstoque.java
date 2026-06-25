@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.ItensEstoqueRepository;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Ingrediente;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.EstoqueInsuficienteException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemEstoque;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemPedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
@@ -66,14 +67,25 @@ public class ServicoEstoque {
         return itensIndisponiveis(itens).isEmpty();
     }
 
-    // Baixa o estoque dos ingredientes consumidos. Chamar apenas apos confirmar a disponibilidade.
+    // Baixa o estoque dos ingredientes consumidos via baixa ATOMICA e condicional por ingrediente
+    // (UPDATE ... WHERE quantidade >= ?), eliminando a corrida check-then-act. Se algum ingrediente
+    // nao tiver saldo (corrida com outro pedido concorrente), lanca EstoqueInsuficienteException —
+    // a transacao do pedido (ServicoPedido.submeter @Transactional) sofre rollback, sem baixa parcial.
     public void baixaEstoque(List<ItemPedido> itens) {
         Map<Long, Integer> requerido = requeridoPorIngrediente(itens);
-        Map<Long, Integer> estoque = estoqueAtual();
         for (Map.Entry<Long, Integer> e : requerido.entrySet()) {
-            long ingredienteId = e.getKey();
-            int novaQuantidade = estoque.getOrDefault(ingredienteId, 0) - e.getValue();
-            itensEstoqueRepository.defineQuantidade(ingredienteId, novaQuantidade);
+            if (!itensEstoqueRepository.baixaSeDisponivel(e.getKey(), e.getValue())) {
+                throw new EstoqueInsuficienteException(
+                    "Estoque insuficiente para o ingrediente " + e.getKey());
+            }
+        }
+    }
+
+    // Devolve ao estoque os ingredientes consumidos por um pedido (UC8: cancelamento de pedido aprovado).
+    public void devolveEstoque(List<ItemPedido> itens) {
+        Map<Long, Integer> requerido = requeridoPorIngrediente(itens);
+        for (Map.Entry<Long, Integer> e : requerido.entrySet()) {
+            itensEstoqueRepository.devolve(e.getKey(), e.getValue());
         }
     }
 }

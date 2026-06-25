@@ -26,6 +26,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemPedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Pedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Receita;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.PagamentoRecusadoException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ICozinhaService;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.IPagamentoService;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoDesconto;
@@ -45,7 +46,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
  * Casos de teste -- PagarPedidoUC (UC9):
  *  1. pagarAprovadoVaiParaAguardando : APROVADO -> pagar -> statusAtual AGUARDANDO, handoff cozinha chamado, pagamento carimbado
  *  2. pagarNaoAprovadoLanca          : pagar pedido ja AGUARDANDO -> IllegalArgumentException
- *  3. pagamentoFalhaLanca            : pagamento retorna false -> IllegalStateException
+ *  3. pagamentoFalhaLanca            : pagamento retorna false -> PagamentoRecusadoException
  */
 class PagarPedidoUCTest {
 
@@ -92,8 +93,14 @@ class PagarPedidoUCTest {
             }
             return itens;
         }
-        @Override public void defineQuantidade(long ingredienteId, int novaQuantidade) {
-            estoque.put(ingredienteId, novaQuantidade);
+        @Override public boolean baixaSeDisponivel(long ingredienteId, int quantidade) {
+            int atual = estoque.getOrDefault(ingredienteId, 0);
+            if (atual < quantidade) return false;
+            estoque.put(ingredienteId, atual - quantidade);
+            return true;
+        }
+        @Override public void devolve(long ingredienteId, int quantidade) {
+            estoque.merge(ingredienteId, quantidade, Integer::sum);
         }
     }
 
@@ -162,6 +169,6 @@ class PagarPedidoUCTest {
         ServicoPedido servicoPedido = servicoPedido();
         PagarPedidoUC uc = new PagarPedidoUC(servicoPedido, new FakePagamento(false), new FakeCozinha());
         Pedido pedido = servicoPedido.submeter(cliente, "Rua X, 10", cesta());
-        assertThrows(IllegalStateException.class, () -> uc.run(pedido.getId()));
+        assertThrows(PagamentoRecusadoException.class, () -> uc.run(pedido.getId()));
     }
 }

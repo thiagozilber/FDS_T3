@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.HistoricoStatusRepository;
@@ -103,7 +104,9 @@ public class ServicoPedido implements IRegistradorStatus {
         return historicoStatusRepository.historico(id);
     }
 
-    // UC8: cancela apenas pedido APROVADO (e ainda nao pago).
+    // UC8: cancela apenas pedido APROVADO (e ainda nao pago). @Transactional: a transicao para
+    // CANCELADO e a devolucao ao estoque (baixado na aprovacao) sao atomicas.
+    @Transactional
     public void cancelar(long id) {
         Pedido pedido = recuperaPorId(id);
         if (pedido.getStatus() != Pedido.Status.APROVADO) {
@@ -111,10 +114,12 @@ public class ServicoPedido implements IRegistradorStatus {
                 "Somente pedido APROVADO e nao pago pode ser cancelado; status atual: " + pedido.getStatus());
         }
         registrarTransicao(id, Pedido.Status.CANCELADO);
+        servicoEstoque.devolveEstoque(pedido.getItens());
     }
 
     // Seam #2: unico ponto de escrita do status/historico. Carimba o instante e, no PAGO, a data de pagamento.
     @Override
+    @Transactional(propagation = Propagation.REQUIRED)
     public void registrarTransicao(long pedidoId, Pedido.Status novo) {
         LocalDateTime agora = LocalDateTime.now();
         pedidoRepository.atualizaStatus(pedidoId, novo);

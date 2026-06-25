@@ -21,9 +21,9 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoPedido;
 
 @Component
 public class SubmeterPedidoParaAprovacaoUC {
-    private ServicoPedido servicoPedido;
-    private ServicoEstoque servicoEstoque;
-    private ProdutosRepository produtosRepository;
+    private final ServicoPedido servicoPedido;
+    private final ServicoEstoque servicoEstoque;
+    private final ProdutosRepository produtosRepository;
 
     @Autowired
     public SubmeterPedidoParaAprovacaoUC(ServicoPedido servicoPedido, ServicoEstoque servicoEstoque,

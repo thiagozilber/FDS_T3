@@ -2,6 +2,7 @@ package com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemEstoque;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.ItemPedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Receita;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.EstoqueInsuficienteException;
 
 /*
  * Casos de teste -- ServicoEstoque (disponibilidade DERIVADA do estoque + baixa):
@@ -24,6 +26,8 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Receita;
  *  2. pedidoSemEstoqueIndisponivel         : 1 ingrediente zerado -> produto correspondente em itensIndisponiveis
  *  3. baixaEstoqueDecrementaQuantidades    : baixaEstoque reduz a quantidade de cada ingrediente consumido
  *  4. quantidadeMultiplaSomaConsumo        : quantidade 2 do produto requer 2 de cada ingrediente (estoque 1 -> indisponivel)
+ *  5. baixaSemSaldoLancaInsuficiente       : baixaEstoque com saldo insuficiente -> EstoqueInsuficienteException
+ *  6. devolveEstoqueIncrementaQuantidades  : devolveEstoque repoe a quantidade de cada ingrediente consumido
  */
 class ServicoEstoqueTest {
 
@@ -38,8 +42,14 @@ class ServicoEstoqueTest {
             }
             return itens;
         }
-        @Override public void defineQuantidade(long ingredienteId, int novaQuantidade) {
-            estoque.put(ingredienteId, novaQuantidade);
+        @Override public boolean baixaSeDisponivel(long ingredienteId, int quantidade) {
+            int atual = estoque.getOrDefault(ingredienteId, 0);
+            if (atual < quantidade) return false;
+            estoque.put(ingredienteId, atual - quantidade);
+            return true;
+        }
+        @Override public void devolve(long ingredienteId, int quantidade) {
+            estoque.merge(ingredienteId, quantidade, Integer::sum);
         }
         int qtd(long ingredienteId) { return estoque.getOrDefault(ingredienteId, 0); }
     }
@@ -95,5 +105,24 @@ class ServicoEstoqueTest {
         ServicoEstoque servico = new ServicoEstoque(new FakeItensEstoqueRepository(estoqueUniforme(1)));
         List<ItemPedido> itens = List.of(new ItemPedido(produtoCalabresa(), 2)); // requer 2 de cada
         assertFalse(servico.haDisponibilidade(itens));
+    }
+
+    @Test
+    void baixaSemSaldoLancaInsuficiente() {
+        ServicoEstoque servico = new ServicoEstoque(new FakeItensEstoqueRepository(estoqueUniforme(1)));
+        List<ItemPedido> itens = List.of(new ItemPedido(produtoCalabresa(), 2)); // requer 2 de cada, ha 1
+        assertThrows(EstoqueInsuficienteException.class, () -> servico.baixaEstoque(itens));
+    }
+
+    @Test
+    void devolveEstoqueIncrementaQuantidades() {
+        FakeItensEstoqueRepository repo = new FakeItensEstoqueRepository(estoqueUniforme(30));
+        ServicoEstoque servico = new ServicoEstoque(repo);
+        List<ItemPedido> itens = List.of(new ItemPedido(produtoCalabresa(), 2));
+        servico.baixaEstoque(itens);   // 30 -> 28
+        servico.devolveEstoque(itens); // 28 -> 30
+        assertEquals(30, repo.qtd(1L));
+        assertEquals(30, repo.qtd(2L));
+        assertEquals(30, repo.qtd(3L));
     }
 }

@@ -9,7 +9,7 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoPedido;
 
 @Component
 public class ConsultarStatusPedidoUC {
-    private ServicoPedido servicoPedido;
+    private final ServicoPedido servicoPedido;
 
     @Autowired
     public ConsultarStatusPedidoUC(ServicoPedido servicoPedido) {

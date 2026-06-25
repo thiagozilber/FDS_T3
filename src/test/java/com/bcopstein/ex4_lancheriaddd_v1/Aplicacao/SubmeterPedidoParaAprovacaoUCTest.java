@@ -87,8 +87,14 @@ class SubmeterPedidoParaAprovacaoUCTest {
             }
             return itens;
         }
-        @Override public void defineQuantidade(long ingredienteId, int novaQuantidade) {
-            estoque.put(ingredienteId, novaQuantidade);
+        @Override public boolean baixaSeDisponivel(long ingredienteId, int quantidade) {
+            int atual = estoque.getOrDefault(ingredienteId, 0);
+            if (atual < quantidade) return false;
+            estoque.put(ingredienteId, atual - quantidade);
+            return true;
+        }
+        @Override public void devolve(long ingredienteId, int quantidade) {
+            estoque.merge(ingredienteId, quantidade, Integer::sum);
         }
     }
 
