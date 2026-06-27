@@ -55,7 +55,7 @@ public class SubmeterPedidoParaAprovacaoUC {
             itens.add(new ItemPedido(produto, e.getValue()));
         }
 
-        Cliente cliente = new Cliente(req.clienteCpf(), null, null, null, null);
+        Cliente cliente = new Cliente(req.clienteCpf(), null, null, null, null, null);
         Pedido pedido = servicoPedido.submeter(cliente, req.enderecoEntrega(), itens);
 
         List<String> indisponiveis = List.of();
