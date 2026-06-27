@@ -135,6 +135,10 @@ public class ServicoPedido implements IRegistradorStatus {
     @Transactional(propagation = Propagation.REQUIRED)
     public void registrarTransicao(long pedidoId, Pedido.Status novo) {
         LocalDateTime agora = LocalDateTime.now();
+        Pedido pedido = pedidoRepository.recuperaPorId(pedidoId);
+        if (pedido != null) {
+            pedido.setStatus(novo);
+        }
         pedidoRepository.atualizaStatus(pedidoId, novo);
         if (novo == Pedido.Status.PAGO) {
             pedidoRepository.atualizaDataHoraPagamento(pedidoId, agora);
