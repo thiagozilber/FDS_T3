@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.CredenciaisInvalidasException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.EstoqueInsuficienteException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.PagamentoRecusadoException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.RecursoNaoEncontradoException;
@@ -29,6 +30,12 @@ public class RestExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<String> handleCredenciaisInvalidas(CredenciaisInvalidasException ex) {
+        // Falha de autenticacao (UC12): e-mail inexistente ou senha incorreta => 401 Unauthorized.
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
