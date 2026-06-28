@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.ClienteRepository;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Cliente;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.CredenciaisInvalidasException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.RecursoNaoEncontradoException;
 
 @Service
@@ -73,7 +74,7 @@ public class ServicoCliente {
         Cliente cliente = clienteRepository.recuperaPorEmail(email);
 
         if (cliente == null || !senha.equals(cliente.getSenha())) {
-            throw new IllegalArgumentException("Credenciais inválidas.");
+            throw new CredenciaisInvalidasException("Credenciais inválidas.");
         }
 
         return cliente;
