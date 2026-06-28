@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 // Modelo de persistencia JPA da tabela "historico_status" (Seam #2: escrita exclusiva de ServicoPedido).
-// Mapeia o pedido por id (pedido_id), sem associacao a PedidoJpaEntity, mantendo o registro simples.
+// Mapeia o pedido por id (pedido_id), sem associacao a Pedido, mantendo o registro simples.
 @Entity
 @Table(name = "historico_status")
 @Getter
