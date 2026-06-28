@@ -1,16 +1,15 @@
 package com.bcopstein.ex4_lancheriaddd_v1.Aplicacao;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Config.ImpostoProperties;
@@ -27,20 +26,20 @@ import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Pedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Produto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Receita;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.PagamentoRecusadoException;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.FabricaEstrategiaDesconto;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.FidelidadeFrequente;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.PromocaoVerao;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.SemDesconto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ICozinhaService;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.IPagamentoService;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.FabricaEstrategiaImposto;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei0412de2022;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoDesconto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoEstoque;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoImposto;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.ServicoPedido;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.TransicaoStatus;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.FabricaEstrategiaDesconto;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.FidelidadeFrequente;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.PromocaoVerao;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Desconto.SemDesconto;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.FabricaEstrategiaImposto;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei0412de2022;
-import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Servicos.Imposto.Lei5762de2026;
 
 /*
  * Casos de teste -- PagarPedidoUC (UC9):
@@ -123,7 +122,7 @@ class PagarPedidoUCTest {
         @Override public boolean processarPagamento(Pedido pedido) { return sucesso; }
     }
 
-    private final Cliente cliente = new Cliente("9001", "Huguinho", "5199", "Rua A", "h@e.com");
+    private final Cliente cliente = new Cliente("9001", "Huguinho", "5199", "Rua A", "h@e.com", "senhaHuguinho");
 
     private ServicoPedido servicoPedido() {
         ImpostoProperties props = new ImpostoProperties();

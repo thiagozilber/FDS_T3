@@ -162,7 +162,7 @@ class ServicoPedidoTest {
         return List.of(new ItemPedido(calabresa, 1), new ItemPedido(margherita, 2));
     }
 
-    private final Cliente cliente = new Cliente("9001", "Huguinho", "5199", "Rua A", "h@e.com");
+    private final Cliente cliente = new Cliente("9001", "Huguinho", "5199", "Rua A", "h@e.com", "senhaHuguinho");
 
     // Campos para inspecao apos montar()
     private FakeItensEstoqueRepository repoEstoque;

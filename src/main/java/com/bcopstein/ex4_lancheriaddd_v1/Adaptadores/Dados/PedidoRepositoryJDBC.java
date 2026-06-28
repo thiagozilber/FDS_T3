@@ -88,7 +88,7 @@ public class PedidoRepositoryJDBC implements PedidoRepository {
     // Mapeia uma linha de pedidos -> Pedido (re-hidratando os itens). Compartilhado por
     // recuperaPorId e entreguesEntre; a query precisa expor as colunas usadas aqui.
     private Pedido mapeiaPedido(ResultSet rs) throws SQLException {
-        Cliente cliente = new Cliente(rs.getString("cliente_cpf"), null, null, null, null);
+        Cliente cliente = new Cliente(rs.getString("cliente_cpf"), null, null, null, null, null);
         Timestamp pago = rs.getTimestamp("data_hora_pagamento");
         LocalDateTime dataHoraPagamento = (pago == null) ? null : pago.toLocalDateTime();
         List<ItemPedido> itens = recuperaItens(rs.getLong("id"));
