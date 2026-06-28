@@ -65,7 +65,8 @@ public class CardapioRepositoryJPA implements CardapioRepository {
 
     @Override
     public List<Produto> indicacoesDoChef() {
-        return List.of(produtosRepository.recuperaProdutoPorid(2L));
+        Produto sugestao = produtosRepository.recuperaProdutoPorid(2L);
+        return sugestao == null ? List.of() : List.of(sugestao);
     }
 
     @Override

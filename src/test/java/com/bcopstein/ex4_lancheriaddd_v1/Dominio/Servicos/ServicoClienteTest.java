@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Dados.ClienteRepository;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Entidades.Cliente;
+import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.CredenciaisInvalidasException;
 import com.bcopstein.ex4_lancheriaddd_v1.Dominio.Excecoes.RecursoNaoEncontradoException;
 
 /*
@@ -185,7 +186,7 @@ class ServicoClienteTest {
 
         servico.cadastrar(cliente());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(CredenciaisInvalidasException.class,
                 () -> servico.autenticar("joao@email.com", "errada"));
     }
 
@@ -193,7 +194,7 @@ class ServicoClienteTest {
     void autenticaEmailInexistenteLanca() {
         ServicoCliente servico = novoServico();
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(CredenciaisInvalidasException.class,
                 () -> servico.autenticar("naoexiste@email.com", "123456"));
     }
 }
