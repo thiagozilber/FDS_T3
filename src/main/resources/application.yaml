@@ -33,3 +33,9 @@ server:
   port: 8080
 imposto:
   lei-vigente: "0412/2022"
+app:
+  admin:
+    # Admin unico via config (nao e um cliente do banco). Demo apenas;
+    # sobrescreva em producao via variavel de ambiente APP_ADMIN_SENHA.
+    email: "admin@pizzaria.com"
+    senha: "admin123"
