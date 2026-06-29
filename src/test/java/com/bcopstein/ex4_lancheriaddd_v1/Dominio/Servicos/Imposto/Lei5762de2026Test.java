@@ -5,6 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+// Driver de teste da estrategia Lei5762de2026 (P6 / Pessoa 2). Isencao ate R$50; 15% sobre o excedente.
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Casos de teste:
+//  1. codigoDaLei                                  - getCodigoLei() == "5762/2026"
+//  2. vendaZeroIsenta                              - calcular(0) == 0
+//  3. vendaIgualAoLimiteIsenta                     - calcular(50) == 0 (limite isento)
+//  4. vendaLogoAcimaDoLimiteTributaApenasOExcedente- calcular(50.01) == 0.0015 (15% de 0.01)
+//  5. venda100PagaQuinzePorCentoDeCinquenta        - calcular(100) == 7.5 (15% de 50)
+//  6. venda1000PagaQuinzePorCentoDeNovecentosECinquenta - calcular(1000) == 142.5 (15% de 950)
+//  7. vendaNegativaLancaExcecao                    - venda negativa -> IllegalArgumentException
+// ───────────────────────────────────────────────────────────────────────────────
 class Lei5762de2026Test {
 
     private static final double DELTA = 1e-9;
