@@ -10,6 +10,19 @@ import org.junit.jupiter.api.Test;
 
 import com.bcopstein.ex4_lancheriaddd_v1.Adaptadores.Config.ImpostoProperties;
 
+// Driver de teste da FabricaEstrategiaImposto (P6 / Pessoa 2). Teste de unidade puro,
+// com helper fabricaCom(lei) controlando a lei vigente via ImpostoProperties.
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Casos de teste:
+//  1. retornaLei0412QuandoVigente        - criar() resolve a estrategia configurada (0412/2022)
+//  2. retornaLei5762QuandoVigente        - criar() resolve a estrategia configurada (5762/2026)
+//  3. criarComCodigoExplicitoIgnoraConfig- criar(codigo) sobrepoe a lei vigente da config
+//  4. leiNulaLancaIllegalState           - lei vigente nula -> IllegalStateException
+//  5. leiEmBrancoLancaIllegalState       - lei vigente em branco -> IllegalStateException
+//  6. leiDesconhecidaLancaIllegalArgument- codigo nao registrado -> IllegalArgumentException
+//  7. calcularViaEstrategiaResolvida     - calcula via a estrategia resolvida (10% de 100 = 10)
+// ───────────────────────────────────────────────────────────────────────────────
 class FabricaEstrategiaImpostoTest {
 
     private final Lei0412de2022 lei0412 = new Lei0412de2022();

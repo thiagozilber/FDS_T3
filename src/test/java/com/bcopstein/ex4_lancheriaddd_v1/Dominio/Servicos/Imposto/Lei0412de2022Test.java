@@ -5,6 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+// Driver de teste da estrategia Lei0412de2022 (P6 / Pessoa 2). Imposto fixo de 10% sobre a venda.
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Casos de teste:
+//  1. codigoDaLei              - getCodigoLei() == "0412/2022"
+//  2. vendaZeroImpostoZero     - calcular(0) == 0
+//  3. venda100ImpostoDe10      - calcular(100) == 10 (10%)
+//  4. venda1000ImpostoDe100    - calcular(1000) == 100 (10%)
+//  5. vendaNegativaLancaExcecao- venda negativa -> IllegalArgumentException
+// ───────────────────────────────────────────────────────────────────────────────
 class Lei0412de2022Test {
 
     private static final double DELTA = 1e-9;
