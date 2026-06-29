@@ -24,15 +24,26 @@ getval(){ # $1 = chave json simples; lê de "$BODY"
   if command -v jq >/dev/null 2>&1; then jq -r ".$1 // empty" <"$BODY"
   else sed -E "s/.*\"$1\":\"?([^\",}]+)\"?.*/\1/" <"$BODY"; fi; }
 
-# req METHOD PATH [curl-args...] -> imprime "METHOD PATH -> código" + corpo; deixa o corpo em $BODY
+# req METHOD PATH [curl-args...] -> mostra o curl literal, imprime "METHOD PATH -> código" + corpo;
+# deixa o corpo em $BODY e pausa esperando ENTER ao fim de cada retorno
 req() {
   local m="$1" p="$2"; shift 2
+  # monta o comando curl literal (copiável) e o exibe
+  local shown; printf -v shown 'curl -s -X %s %q' "$m" "$BASE$p"
+  local a; for a in "$@"; do printf -v shown '%s %q' "$shown" "$a"; done
+  printf "${C_M}\$ %s${C_0}\n" "$shown"
   local code; code=$(curl -s -o "$BODY" -w "%{http_code}" -X "$m" "$BASE$p" "$@")
   local color="$C_OK"; case "$code" in 4*|5*|000) color="$C_NO";; esac
   printf "${C_M}%-4s %-32s${C_0} -> ${color}%s${C_0}\n" "$m" "$p" "$code"
   pretty; echo
+  pause
 }
 auth() { printf 'Authorization: Bearer %s' "$1"; }
+
+# pausa a cada retorno — espera ENTER (qualquer tecla); pulada fora de terminal
+pause() {
+  if [ -t 0 ]; then printf "${C_M}-- pressione ENTER para continuar --${C_0}"; read -r _; fi
+}
 
 # pedido_corpo CPF "ENDERECO" "itensJSON"  -> ecoa o corpo do POST /pedidos
 pedido() { printf '{"clienteCpf":"%s","enderecoEntrega":"%s","itens":%s}' "$1" "$2" "$3"; }
